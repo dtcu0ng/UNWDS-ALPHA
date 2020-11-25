@@ -206,7 +206,7 @@ namespace pocketmine {
 
 		$lockFilePath = $dataPath . '/server.lock';
 		if(($pid = Filesystem::createLockFile($lockFilePath)) !== null){
-			critical_error("Another " . VersionInfo::NAME . " instance (PID $pid) is already using this folder (" . realpath($dataPath) . ").");
+			critical_error("Another " . VersionInfo::DISTRO_NAME . " instance (PID $pid) is already using this folder (" . realpath($dataPath) . ").");
 			critical_error("Please stop the other server first before running a new one.");
 			exit(1);
 		}

@@ -33,11 +33,11 @@ final class VersionInfo{
 		  public const NAME = "PocketMine-MP";
 		  public const BASE_VERSION = "4.0.0";
 		  public const IS_DEVELOPMENT_BUILD = true;
-	  
-		// The UNWDS version strings (test SpoonMask v3)
-		  public const DISTRO_NAME = "UNWDS";
-		  public const CODENAME = "NEra";
-		  public const UNWDS_VERSION = "3.0.0";
+
+		 // The UNWDS version strings (SpoonMask v3)
+	      public const DISTRO_NAME = "UNWDS";
+	      public const CODENAME = "NEra";
+	      public const UNWDS_VERSION = "3.0.0";
 		  public const BUILD_NUMBER = 0101;
 
 	private function __construct(){

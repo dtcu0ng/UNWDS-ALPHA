@@ -843,18 +843,18 @@ class Server{
 
 			if(VersionInfo::IS_DEVELOPMENT_BUILD){
 				if(!((bool) $this->configGroup->getProperty("settings.enable-dev-builds", false))){
-					$this->logger->emergency($this->language->translateString("pocketmine.server.devBuild.error1", [VersionInfo::NAME]));
+					$this->logger->emergency($this->language->translateString("pocketmine.server.devBuild.error1", [VersionInfo::DISTRO_NAME]));
 					$this->logger->emergency($this->language->translateString("pocketmine.server.devBuild.error2"));
 					$this->logger->emergency($this->language->translateString("pocketmine.server.devBuild.error3"));
 					$this->logger->emergency($this->language->translateString("pocketmine.server.devBuild.error4", ["settings.enable-dev-builds"]));
-					$this->logger->emergency($this->language->translateString("pocketmine.server.devBuild.error5", ["https://github.com/pmmp/PocketMine-MP/releases"]));
+					$this->logger->emergency($this->language->translateString("pocketmine.server.devBuild.error5", ["https://github.com/UnnamedNetwork/UNWDS/releases"]));
 					$this->forceShutdown();
 
 					return;
 				}
 
 				$this->logger->warning(str_repeat("-", 40));
-				$this->logger->warning($this->language->translateString("pocketmine.server.devBuild.warning1", [VersionInfo::NAME]));
+				$this->logger->warning($this->language->translateString("pocketmine.server.devBuild.warning1", [VersionInfo::DISTRO_NAME]));
 				$this->logger->warning($this->language->translateString("pocketmine.server.devBuild.warning2"));
 				$this->logger->warning($this->language->translateString("pocketmine.server.devBuild.warning3"));
 				$this->logger->warning(str_repeat("-", 40));
@@ -923,7 +923,7 @@ class Server{
 				$this->configGroup->setConfigInt("difficulty", World::DIFFICULTY_HARD);
 			}
 
-			@cli_set_process_title($this->getDistroName() . " " . $this->getPocketMineVersion());
+			@cli_set_process_title($this->getDistroName() . " " . $this->getUNWDSVersion());
 
 			$this->serverID = Utils::getMachineUniqueId($this->getIp() . $this->getPort());
 
@@ -935,7 +935,7 @@ class Server{
 
 			$this->logger->info($this->getLanguage()->translateString("pocketmine.server.info", [
 				$this->getDistroName(),
-				(VersionInfo::IS_DEVELOPMENT_BUILD ? TextFormat::YELLOW : "") . $this->getPocketMineVersion() . TextFormat::RESET
+				(VersionInfo::IS_DEVELOPMENT_BUILD ? TextFormat::YELLOW : "") . $this->getUNWDSVersion() . TextFormat::RESET
 			]));
 			$this->logger->info($this->getLanguage()->translateString("pocketmine.server.license", [$this->getDistroName()]));
 
@@ -1476,8 +1476,8 @@ class Server{
 					$postUrlError = "Unknown error";
 					$reply = Internet::postURL($url, [
 						"report" => "yes",
-						"name" => $this->getDistroName() . " " . $this->getPocketMineVersion(),
-						"email" => "crash@pocketmine.net",
+						"name" => $this->getDistroName() . " " . $this->getUNWDSVersion(),
+						"email" => "unwds_dev@dtcg.xyz",
 						"reportPaste" => base64_encode($dump->getEncodedData())
 					], 10, [], $postUrlError);
 
@@ -1601,7 +1601,7 @@ class Server{
 		$bandwidthStats = $this->network->getBandwidthTracker();
 
 		echo "\x1b]0;" . $this->getDistroName() . " " .
-			$this->getPocketMineVersion() .
+			$this->getUNWDSVersion() .
 			" | Online $online/" . $this->getMaxPlayers() .
 			($connecting > 0 ? " (+$connecting connecting)" : "") .
 			" | Memory " . $usage .
