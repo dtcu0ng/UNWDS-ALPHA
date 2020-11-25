@@ -26,10 +26,10 @@ use pocketmine\command\Command;
 use pocketmine\command\CommandSender;
 use pocketmine\permission\Permission;
 use pocketmine\permission\PermissionManager;
-use pocketmine\Player;
+use pocketmine\player\Player;
 use pocketmine\plugin\Plugin;
 use pocketmine\plugin\PluginBase;
-use pocketmine\plugin\PluginLoadOrder;
+use pocketmine\plugin\PluginEnableOrder;
 use pocketmine\Server;
 use pocketmine\utils\TextFormat;
 use function assert;
@@ -68,7 +68,7 @@ class DevTools extends PluginBase{
 		$this->getServer()->getPluginManager()->registerInterface(new FolderPluginLoader($this->getServer()->getLoader()));
 		$this->getServer()->getPluginManager()->loadPlugins($this->getServer()->getPluginPath(), [FolderPluginLoader::class]);
 		$this->getLogger()->info("Registered folder plugin loader");
-		$this->getServer()->enablePlugins(PluginLoadOrder::STARTUP);
+		$this->getServer()->enablePlugins(PluginEnableOrder::STARTUP());
 
 	}
 
@@ -122,7 +122,7 @@ class DevTools extends PluginBase{
 		}
 		$node = strtolower($args[0]);
 		if(isset($args[1])){
-			if(($player = $this->getServer()->getPlayer($args[1])) instanceof Player){
+			if(($player = $this->getServer()->getPlayerByPrefix($args[1])) instanceof Player){
 				$target = $player;
 			}else{
 				return false;
