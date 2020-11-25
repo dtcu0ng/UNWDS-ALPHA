@@ -35,9 +35,9 @@ final class VersionInfo{
 		  public const IS_DEVELOPMENT_BUILD = true;
 	  
 		// The UNWDS version strings (test SpoonMask v3)
-		  const DISTRO_NAME = "UNWDS";
-		  const CODENAME = "NEra";
-		  const UNWDS_VERSION = "3.0.0";
+		  public const DISTRO_NAME = "UNWDS";
+		  public const CODENAME = "NEra";
+		  public const UNWDS_VERSION = "3.0.0";
 		  public const BUILD_NUMBER = 0101;
 
 	private function __construct(){
