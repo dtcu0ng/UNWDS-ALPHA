@@ -44,29 +44,6 @@ final class VersionInfo{
 		//NOOP
 	}
 
-	/** @var string|null */
-	private static $gitHash = null;
-
-	public static function getGitHash() : string{
-		if(self::$gitHash === null){
-			$gitHash = str_repeat("00", 20);
-
-			if(\Phar::running(true) === ""){
-				$gitHash = Git::getRepositoryStatePretty(\pocketmine\PATH);
-			}else{
-				$phar = new \Phar(\Phar::running(false));
-				$meta = $phar->getMetadata();
-				if(isset($meta["git"])){
-					$gitHash = $meta["git"];
-				}
-			}
-
-			self::$gitHash = $gitHash;
-		}
-
-		return self::$gitHash;
-	}
-
 	/** @var VersionString|null */
 	private static $fullVersion = null;
 

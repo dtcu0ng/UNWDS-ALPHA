@@ -319,29 +319,22 @@ class CrashDump{
 		}
 
 		$this->data["general"] = [];
-		$this->data["general"]["name"] = $this->server->getName();
+		$this->data["general"]["name"] = $this->server->getDistroName();
 		$this->data["general"]["base_version"] = VersionInfo::BASE_VERSION;
 		$this->data["general"]["build"] = VersionInfo::BUILD_NUMBER;
 		$this->data["general"]["is_dev"] = VersionInfo::IS_DEVELOPMENT_BUILD;
 		$this->data["general"]["protocol"] = ProtocolInfo::CURRENT_PROTOCOL;
-		$this->data["general"]["git"] = VersionInfo::getGitHash();
 		$this->data["general"]["uname"] = php_uname("a");
 		$this->data["general"]["php"] = phpversion();
 		$this->data["general"]["zend"] = zend_version();
 		$this->data["general"]["php_os"] = PHP_OS;
 		$this->data["general"]["os"] = Utils::getOS();
-		$this->data["general"]["composer_libraries"] = $composerLibraries;
-		$this->addLine($this->server->getName() . " version: " . $version->getFullVersion(true) . " [Protocol " . ProtocolInfo::CURRENT_PROTOCOL . "]");
-		$this->addLine("Git commit: " . VersionInfo::getGitHash());
+		$this->addLine($this->server->getDistroName() . " version: " . $this->server->getUNWDSVersion() . " [Protocol " . ProtocolInfo::CURRENT_PROTOCOL . "]");
+		$this->addLine("Emulating: " . $this->server->getName() . " version: " . $this->server->getApiVersion());
 		$this->addLine("uname -a: " . php_uname("a"));
 		$this->addLine("PHP Version: " . phpversion());
 		$this->addLine("Zend version: " . zend_version());
 		$this->addLine("OS : " . PHP_OS . ", " . Utils::getOS());
-		$this->addLine("Composer libraries: ");
-		foreach($composerLibraries as $library => $libraryVersion){
-			$this->addLine("- $library $libraryVersion");
-		}
-	}
 
 	/**
 	 * @param string $line
