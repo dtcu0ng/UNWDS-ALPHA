@@ -297,6 +297,18 @@ class Server{
 		return VersionInfo::BASE_VERSION;
 	}
 
+	public function getCodename() : string{
+		return VersionInfo::CODENAME;
+	}
+
+	public function getDistroname() : string{
+		return VersionInfo::DISTRO_NAME;
+	}
+
+	public function getUNWDSVersion() : string{
+		return VersionInfo::UNWDS_VERSION;
+	}
+
 	public function getFilePath() : string{
 		return \pocketmine\PATH;
 	}
@@ -827,7 +839,7 @@ class Server{
 				}
 			}
 
-			$this->logger->info($this->getLanguage()->translateString("language.selected", [$this->getLanguage()->getName(), $this->getLanguage()->getLang()]));
+			$this->logger->info($this->getLanguage()->translateString("language.selected", [$this->getLanguage()->getDistroName(), $this->getLanguage()->getLang()]));
 
 			if(VersionInfo::IS_DEVELOPMENT_BUILD){
 				if(!((bool) $this->configGroup->getProperty("settings.enable-dev-builds", false))){
@@ -911,7 +923,7 @@ class Server{
 				$this->configGroup->setConfigInt("difficulty", World::DIFFICULTY_HARD);
 			}
 
-			@cli_set_process_title($this->getName() . " " . $this->getPocketMineVersion());
+			@cli_set_process_title($this->getDistroName() . " " . $this->getPocketMineVersion());
 
 			$this->serverID = Utils::getMachineUniqueId($this->getIp() . $this->getPort());
 
@@ -922,10 +934,10 @@ class Server{
 			$this->network->setName($this->getMotd());
 
 			$this->logger->info($this->getLanguage()->translateString("pocketmine.server.info", [
-				$this->getName(),
+				$this->getDistroName(),
 				(VersionInfo::IS_DEVELOPMENT_BUILD ? TextFormat::YELLOW : "") . $this->getPocketMineVersion() . TextFormat::RESET
 			]));
-			$this->logger->info($this->getLanguage()->translateString("pocketmine.server.license", [$this->getName()]));
+			$this->logger->info($this->getLanguage()->translateString("pocketmine.server.license", [$this->getDistroName()]));
 
 			Timings::init();
 			TimingsHandler::setEnabled((bool) $this->configGroup->getProperty("settings.enable-profiling", false));
@@ -1464,7 +1476,7 @@ class Server{
 					$postUrlError = "Unknown error";
 					$reply = Internet::postURL($url, [
 						"report" => "yes",
-						"name" => $this->getName() . " " . $this->getPocketMineVersion(),
+						"name" => $this->getDistroName() . " " . $this->getPocketMineVersion(),
 						"email" => "crash@pocketmine.net",
 						"reportPaste" => base64_encode($dump->getEncodedData())
 					], 10, [], $postUrlError);
@@ -1588,7 +1600,7 @@ class Server{
 		$connecting = $this->network->getConnectionCount() - $online;
 		$bandwidthStats = $this->network->getBandwidthTracker();
 
-		echo "\x1b]0;" . $this->getName() . " " .
+		echo "\x1b]0;" . $this->getDistroName() . " " .
 			$this->getPocketMineVersion() .
 			" | Online $online/" . $this->getMaxPlayers() .
 			($connecting > 0 ? " (+$connecting connecting)" : "") .

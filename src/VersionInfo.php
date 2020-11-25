@@ -28,10 +28,17 @@ use pocketmine\utils\VersionString;
 use function str_repeat;
 
 final class VersionInfo{
-	public const NAME = "UNWDS";
-	public const BASE_VERSION = "4.0.0";
-	public const IS_DEVELOPMENT_BUILD = true;
-	public const BUILD_NUMBER = 0100;
+	// Trying to deploy SpoonMask v3 to PM4
+	     // PocketMine-MP's default version constants, this will bypass the Spoon detector
+		  public const NAME = "PocketMine-MP";
+		  public const BASE_VERSION = "4.0.0";
+		  public const IS_DEVELOPMENT_BUILD = true;
+	  
+		// The UNWDS version strings (test SpoonMask v3)
+		  const DISTRO_NAME = "UNWDS";
+		  const CODENAME = "NEra";
+		  const UNWDS_VERSION = "3.0.0";
+		  public const BUILD_NUMBER = 0101;
 
 	private function __construct(){
 		//NOOP
