@@ -839,7 +839,7 @@ class Server{
 				}
 			}
 
-			$this->logger->info($this->getLanguage()->translateString("language.selected", [$this->getLanguage()->getDistroName(), $this->getLanguage()->getLang()]));
+			$this->logger->info($this->getLanguage()->translateString("language.selected", [$this->getLanguage()->getName(), $this->getLanguage()->getLang()]));
 
 			if(VersionInfo::IS_DEVELOPMENT_BUILD){
 				if(!((bool) $this->configGroup->getProperty("settings.enable-dev-builds", false))){
