@@ -16,6 +16,7 @@ cache:
 notifications:
  email:
   recipients:
-   - unwds_dev@dtcg.xyz
+   - unwds_dev@dtcu0ng.com
+   - ci-report@dtcu0ng.com
   on_success: change
   on_failure: always
