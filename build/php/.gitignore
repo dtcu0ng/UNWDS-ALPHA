@@ -1,7 +1,0 @@
-bin/
-install_data/
-install.log
-temp_data/
-compile.log
-/*.zip
-/*.exe
