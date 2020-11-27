@@ -395,7 +395,7 @@ class Server{
 	}
 
 	public function getMotd() : string{
-		return $this->configGroup->getConfigString("motd", VersionInfo::NAME . " Server");
+		return $this->configGroup->getConfigString("motd", VersionInfo::DISTRO_NAME . " Server");
 	}
 
 	/**
@@ -557,6 +557,7 @@ class Server{
 			}
 			return null;
 		});
+	}
 
 	public function saveOfflinePlayerData(string $name, CompoundTag $nbtTag) : void{
 		$ev = new PlayerDataSaveEvent($nbtTag, $name);
@@ -802,7 +803,7 @@ class Server{
 			$this->configGroup = new ServerConfigGroup(
 				new Config($this->dataPath . "pocketmine.yml", Config::YAML, []),
 				new Config($this->dataPath . "server.properties", Config::PROPERTIES, [
-					"motd" => VersionInfo::NAME . " Server",
+					"motd" => VersionInfo::DISTRO_NAME . " Server",
 					"server-port" => 19132,
 					"white-list" => false,
 					"max-players" => 20,
@@ -850,7 +851,7 @@ class Server{
 					$this->logger->emergency($this->language->translateString("pocketmine.server.devBuild.error2"));
 					$this->logger->emergency($this->language->translateString("pocketmine.server.devBuild.error3"));
 					$this->logger->emergency($this->language->translateString("pocketmine.server.devBuild.error4", ["settings.enable-dev-builds"]));
-					$this->logger->emergency($this->language->translateString("pocketmine.server.devBuild.error5", ["https://github.com/UnnamedNetwork/UNWDS/releases"]));
+					$this->logger->emergency($this->language->translateString("pocketmine.server.devBuild.error5", ["https://github.com/pmmp/PocketMine-MP/releases"]));
 					$this->forceShutdown();
 
 					return;
@@ -926,7 +927,7 @@ class Server{
 				$this->configGroup->setConfigInt("difficulty", World::DIFFICULTY_HARD);
 			}
 
-			@cli_set_process_title($this->getDistroName() . " " . $this->getUNWDSVersion());
+			@cli_set_process_title($this->getName() . " " . $this->getPocketMineVersion());
 
 			$this->serverID = Utils::getMachineUniqueId($this->getIp() . $this->getPort());
 
@@ -937,10 +938,10 @@ class Server{
 			$this->network->setName($this->getMotd());
 
 			$this->logger->info($this->getLanguage()->translateString("pocketmine.server.info", [
-				$this->getDistroName(),
-				(VersionInfo::IS_DEVELOPMENT_BUILD ? TextFormat::YELLOW : "") . $this->getUNWDSVersion() . TextFormat::RESET
+				$this->getName(),
+				(VersionInfo::IS_DEVELOPMENT_BUILD ? TextFormat::YELLOW : "") . $this->getPocketMineVersion() . TextFormat::RESET
 			]));
-			$this->logger->info($this->getLanguage()->translateString("pocketmine.server.license", [$this->getDistroName()]));
+			$this->logger->info($this->getLanguage()->translateString("pocketmine.server.license", [$this->getName()]));
 
 			Timings::init();
 			TimingsHandler::setEnabled((bool) $this->configGroup->getProperty("settings.enable-profiling", false));
@@ -1251,7 +1252,7 @@ class Server{
 
 	/**
 	 * Broadcasts a list of packets in a batch to a list of players
-	 * 
+	 *
 	 * @param bool|null $sync Compression on the main thread (true) or workers (false). Default is automatic (null).
 	 */
 	public function prepareBatch(PacketBatch $stream, Compressor $compressor, ?bool $sync = null) : CompressBatchPromise{
@@ -1259,6 +1260,7 @@ class Server{
 			Timings::$playerNetworkSendCompressTimer->startTiming();
 
 			$buffer = $stream->getBuffer();
+
 			if($sync === null){
 				$sync = !($this->networkCompressionAsync && $compressor->willCompress($buffer));
 			}
@@ -1481,8 +1483,8 @@ class Server{
 					$postUrlError = "Unknown error";
 					$reply = Internet::postURL($url, [
 						"report" => "yes",
-						"name" => $this->getDistroName() . " " . $this->getUNWDSVersion(),
-						"email" => "unwds_dev@dtcg.xyz",
+						"name" => $this->getName() . " " . $this->getPocketMineVersion(),
+						"email" => "crash@pocketmine.net",
 						"reportPaste" => base64_encode($dump->getEncodedData())
 					], 10, [], $postUrlError);
 
@@ -1605,8 +1607,8 @@ class Server{
 		$connecting = $this->network->getConnectionCount() - $online;
 		$bandwidthStats = $this->network->getBandwidthTracker();
 
-		echo "\x1b]0;" . $this->getDistroName() . " " .
-			$this->getUNWDSVersion() .
+		echo "\x1b]0;" . $this->getName() . " " .
+			$this->getPocketMineVersion() .
 			" | Online $online/" . $this->getMaxPlayers() .
 			($connecting > 0 ? " (+$connecting connecting)" : "") .
 			" | Memory " . $usage .
