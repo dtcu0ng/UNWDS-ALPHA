@@ -1,0 +1,9 @@
+[submodule "resources/locale"]
+	path = resources/locale
+	url = https://github.com/UnnamedNetwork/Language.git
+[submodule "resources/vanilla"]
+	path = resources/vanilla
+	url = https://github.com/UnnamedNetwork/BedrockData.git
+[submodule "tests/plugins/DevTools"]
+	path = tests/plugins/DevTools
+	url = https://github.com/UnnamedNetwork/DevTools.git
