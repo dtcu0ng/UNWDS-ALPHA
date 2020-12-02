@@ -97,7 +97,6 @@ use pocketmine\network\mcpe\protocol\types\entity\EntityMetadataProperties;
 use pocketmine\network\mcpe\protocol\types\entity\PlayerMetadataFlags;
 use pocketmine\permission\PermissibleBase;
 use pocketmine\permission\PermissibleDelegateTrait;
-use pocketmine\permission\PermissionManager;
 use pocketmine\Server;
 use pocketmine\timings\Timings;
 use pocketmine\utils\TextFormat;
@@ -137,9 +136,7 @@ use const PHP_INT_MAX;
  * Main class that handles networking, recovery, and packet sending to the server part
  */
 class Player extends Human implements CommandSender, ChunkListener, IPlayer{
-	use PermissibleDelegateTrait {
-		recalculatePermissions as private delegateRecalculatePermissions;
-	}
+	use PermissibleDelegateTrait;
 
 	private const MOVES_PER_TICK = 2;
 	private const MOVE_BACKLOG_SIZE = 100 * self::MOVES_PER_TICK; //100 ticks backlog (5 seconds)
@@ -281,7 +278,7 @@ class Player extends Human implements CommandSender, ChunkListener, IPlayer{
 		$this->uuid = $this->playerInfo->getUuid();
 		$this->xuid = $this->playerInfo instanceof XboxLivePlayerInfo ? $this->playerInfo->getXuid() : "";
 
-		$this->perm = new PermissibleBase($this);
+		$this->perm = new PermissibleBase($this->server->isOp($this->username));
 		$this->chunksPerTick = (int) $this->server->getConfigGroup()->getProperty("chunk-sending.per-tick", 4);
 		$this->spawnThreshold = (int) (($this->server->getConfigGroup()->getProperty("chunk-sending.spawn-radius", 4) ** 2) * M_PI);
 		$this->chunkSelector = new ChunkSelector();
@@ -312,6 +309,8 @@ class Player extends Human implements CommandSender, ChunkListener, IPlayer{
 
 			return;
 		}
+
+		$this->perm->recalculatePermissions();
 
 		$this->server->getLogger()->info($this->getServer()->getLanguage()->translateString("pocketmine.player.logIn", [
 			TextFormat::AQUA . $this->username . TextFormat::WHITE,
@@ -366,31 +365,6 @@ class Player extends Human implements CommandSender, ChunkListener, IPlayer{
 		}
 
 		return "";
-	}
-
-	public function isBanned() : bool{
-		return $this->server->getNameBans()->isBanned($this->username);
-	}
-
-	public function setBanned(bool $banned) : void{
-		if($banned){
-			$this->server->getNameBans()->addBan($this->getName(), null, null, null);
-			$this->kick("You have been banned");
-		}else{
-			$this->server->getNameBans()->remove($this->getName());
-		}
-	}
-
-	public function isWhitelisted() : bool{
-		return $this->server->isWhitelisted($this->username);
-	}
-
-	public function setWhitelisted(bool $value) : void{
-		if($value){
-			$this->server->addWhitelist($this->username);
-		}else{
-			$this->server->removeWhitelist($this->username);
-		}
 	}
 
 	public function isAuthenticated() : bool{
@@ -546,47 +520,6 @@ class Player extends Human implements CommandSender, ChunkListener, IPlayer{
 
 	public function isOnline() : bool{
 		return $this->isConnected();
-	}
-
-	public function isOp() : bool{
-		return $this->server->isOp($this->getName());
-	}
-
-	public function setOp(bool $value) : void{
-		if($value === $this->isOp()){
-			return;
-		}
-
-		if($value){
-			$this->server->addOp($this->getName());
-		}else{
-			$this->server->removeOp($this->getName());
-		}
-
-		$this->networkSession->syncAdventureSettings($this);
-	}
-
-	public function recalculatePermissions() : void{
-		$permManager = PermissionManager::getInstance();
-		$permManager->unsubscribeFromPermission(Server::BROADCAST_CHANNEL_USERS, $this);
-		$permManager->unsubscribeFromPermission(Server::BROADCAST_CHANNEL_ADMINISTRATIVE, $this);
-
-		if($this->perm === null){
-			return;
-		}
-
-		$this->delegateRecalculatePermissions();
-
-		if($this->spawned){
-			if($this->hasPermission(Server::BROADCAST_CHANNEL_USERS)){
-				$permManager->subscribeToPermission(Server::BROADCAST_CHANNEL_USERS, $this);
-			}
-			if($this->hasPermission(Server::BROADCAST_CHANNEL_ADMINISTRATIVE)){
-				$permManager->subscribeToPermission(Server::BROADCAST_CHANNEL_ADMINISTRATIVE, $this);
-			}
-
-			$this->networkSession->syncAvailableCommands();
-		}
 	}
 
 	public function isConnected() : bool{
@@ -812,6 +745,16 @@ class Player extends Human implements CommandSender, ChunkListener, IPlayer{
 		Timings::$playerChunkSendTimer->stopTiming();
 	}
 
+	private function recheckBroadcastPermissions() : void{
+		foreach([Server::BROADCAST_CHANNEL_USERS, Server::BROADCAST_CHANNEL_ADMINISTRATIVE] as $channel){
+			if($this->hasPermission($channel)){
+				$this->server->subscribeToBroadcastChannel($channel, $this);
+			}else{
+				$this->server->unsubscribeFromBroadcastChannel($channel, $this);
+			}
+		}
+	}
+
 	/**
 	 * Called by the network system when the pre-spawn sequence is completed (e.g. after sending spawn chunks).
 	 * This fires join events and broadcasts join messages to other online players.
@@ -821,12 +764,12 @@ class Player extends Human implements CommandSender, ChunkListener, IPlayer{
 			return;
 		}
 		$this->spawned = true;
-		if($this->hasPermission(Server::BROADCAST_CHANNEL_USERS)){
-			PermissionManager::getInstance()->subscribeToPermission(Server::BROADCAST_CHANNEL_USERS, $this);
-		}
-		if($this->hasPermission(Server::BROADCAST_CHANNEL_ADMINISTRATIVE)){
-			PermissionManager::getInstance()->subscribeToPermission(Server::BROADCAST_CHANNEL_ADMINISTRATIVE, $this);
-		}
+		$this->recheckBroadcastPermissions();
+		$this->getPermissionRecalculationCallbacks()->add(function(array $changedPermissionsOldValues) : void{
+			if(isset($changedPermissionsOldValues[Server::BROADCAST_CHANNEL_ADMINISTRATIVE]) || isset($changedPermissionsOldValues[Server::BROADCAST_CHANNEL_USERS])){
+				$this->recheckBroadcastPermissions();
+			}
+		});
 
 		$ev = new PlayerJoinEvent($this,
 			new TranslationContainer(TextFormat::YELLOW . "%multiplayer.player.joined", [
@@ -841,10 +784,6 @@ class Player extends Human implements CommandSender, ChunkListener, IPlayer{
 		$this->noDamageTicks = 60;
 
 		$this->spawnToAll();
-
-		if($this->server->getUpdater()->hasUpdate() and $this->hasPermission(Server::BROADCAST_CHANNEL_ADMINISTRATIVE) and $this->server->getConfigGroup()->getProperty("auto-updater.on-update.warn-ops", true)){
-			$this->server->getUpdater()->showPlayerUpdate($this);
-		}
 
 		if($this->getHealth() <= 0){
 			$this->respawn();
@@ -896,6 +835,14 @@ class Player extends Human implements CommandSender, ChunkListener, IPlayer{
 	 */
 	public function isUsingChunk(int $chunkX, int $chunkZ) : bool{
 		return isset($this->usedChunks[World::chunkHash($chunkX, $chunkZ)]);
+	}
+
+	/**
+	 * @return UsedChunkStatus[] chunkHash => status
+	 * @phpstan-return array<int, UsedChunkStatus>
+	 */
+	public function getUsedChunks() : array{
+		return $this->usedChunks;
 	}
 
 	/**
@@ -1404,7 +1351,7 @@ class Player extends Human implements CommandSender, ChunkListener, IPlayer{
 					$this->server->dispatchCommand($ev->getPlayer(), substr($ev->getMessage(), 1));
 					Timings::$playerCommandTimer->stopTiming();
 				}else{
-					$ev = new PlayerChatEvent($this, $ev->getMessage());
+					$ev = new PlayerChatEvent($this, $ev->getMessage(), $this->server->getBroadcastChannelSubscribers(Server::BROADCAST_CHANNEL_USERS));
 					$ev->call();
 					if(!$ev->isCancelled()){
 						$this->server->broadcastMessage($this->getServer()->getLanguage()->translateString($ev->getFormat(), [$ev->getPlayer()->getDisplayName(), $ev->getMessage()]), $ev->getRecipients());
@@ -2013,8 +1960,7 @@ class Player extends Human implements CommandSender, ChunkListener, IPlayer{
 		}
 
 		//prevent the player receiving their own disconnect message
-		PermissionManager::getInstance()->unsubscribeFromPermission(Server::BROADCAST_CHANNEL_USERS, $this);
-		PermissionManager::getInstance()->unsubscribeFromPermission(Server::BROADCAST_CHANNEL_ADMINISTRATIVE, $this);
+		$this->server->unsubscribeFromAllBroadcastChannels($this);
 
 		$ev = new PlayerQuitEvent($this, $quitMessage ?? $this->getLeaveMessage(), $reason);
 		$ev->call();
@@ -2050,7 +1996,7 @@ class Player extends Human implements CommandSender, ChunkListener, IPlayer{
 		$this->removeCurrentWindow();
 		$this->removePermanentInventories();
 
-		$this->perm->clearPermissions();
+		$this->perm->destroyCycles();
 
 		$this->flagForDespawn();
 	}
@@ -2174,7 +2120,9 @@ class Player extends Human implements CommandSender, ChunkListener, IPlayer{
 
 	public function respawn() : void{
 		if($this->server->isHardcore()){
-			$this->setBanned(true);
+			if($this->kick("You have been banned because you died in hardcore mode")){ //this allows plugins to prevent the ban by cancelling PlayerKickEvent
+				$this->server->getNameBans()->addBan($this->getName(), "Died in hardcore mode");
+			}
 			return;
 		}
 

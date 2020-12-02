@@ -74,9 +74,9 @@ class VersionString{
 	public function getFullVersion(bool $build = false) : string{
 		$retval = $this->baseVersion;
 		if($this->development){
-			$retval .= "-devbuild";
+			$retval .= "+dev";
 			if($build and $this->build > 0){
-				$retval .= ":" . $this->build;
+				$retval .= "." . $this->build;
 			}
 		}
 

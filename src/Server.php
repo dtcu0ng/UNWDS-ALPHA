@@ -62,7 +62,6 @@ use pocketmine\network\query\QueryInfo;
 use pocketmine\network\upnp\UPnP;
 use pocketmine\permission\BanList;
 use pocketmine\permission\DefaultPermissions;
-use pocketmine\permission\PermissionManager;
 use pocketmine\player\GameMode;
 use pocketmine\player\OfflinePlayer;
 use pocketmine\player\Player;
@@ -80,7 +79,6 @@ use pocketmine\snooze\SleeperNotifier;
 use pocketmine\stats\SendUsageTask;
 use pocketmine\timings\Timings;
 use pocketmine\timings\TimingsHandler;
-use pocketmine\updater\AutoUpdater;
 use pocketmine\utils\Config;
 use pocketmine\utils\Filesystem;
 use pocketmine\utils\Internet;
@@ -184,9 +182,6 @@ class Server{
 	/** @var float */
 	private $profilingTickRate = 20;
 
-	/** @var AutoUpdater */
-	private $updater;
-
 	/** @var AsyncPool */
 	private $asyncPool;
 
@@ -277,8 +272,26 @@ class Server{
 	/** @var Player[] */
 	private $playerList = [];
 
+	/**
+	 * @var CommandSender[][]
+	 * @phpstan-var array<string, array<int, CommandSender>>
+	 */
+	private $broadcastSubscribers = [];
+
 	public function getName() : string{
 		return VersionInfo::NAME;
+	}
+
+	public function getDistroName() : string{
+		return VersionInfo::DISTRO_NAME;
+	}
+
+	public function getUNWDSVersion() : string{
+		return VersionInfo::UNWDS_VERSION;
+	}
+
+	public function getCodename() : string{
+		return VersionInfo::CODENAME;
 	}
 
 	public function isRunning() : bool{
@@ -295,18 +308,6 @@ class Server{
 
 	public function getApiVersion() : string{
 		return VersionInfo::BASE_VERSION;
-	}
-
-	public function getCodename() : string{
-		return VersionInfo::CODENAME;
-	}
-
-	public function getDistroname() : string{
-		return VersionInfo::DISTRO_NAME;
-	}
-
-	public function getUNWDSVersion() : string{
-		return VersionInfo::UNWDS_VERSION;
 	}
 
 	public function getFilePath() : string{
@@ -413,13 +414,6 @@ class Server{
 	}
 
 	/**
-	 * @return AutoUpdater
-	 */
-	public function getUpdater(){
-		return $this->updater;
-	}
-
-	/**
 	 * @return PluginManager
 	 */
 	public function getPluginManager(){
@@ -507,7 +501,7 @@ class Server{
 		$result = $this->getPlayerExact($name);
 
 		if($result === null){
-			$result = new OfflinePlayer($this, $name);
+			$result = new OfflinePlayer($name, $this->getOfflinePlayerData($name));
 		}
 
 		return $result;
@@ -549,7 +543,7 @@ class Server{
 
 				try{
 					return (new BigEndianNbtSerializer())->read($decompressed)->mustGetCompoundTag();
-				}catch(NbtDataException $e){ //zlib decode error / corrupt data
+				}catch(NbtDataException $e){ //corrupt data
 					$this->logger->debug("Failed to decode NBT data for \"$name\": " . $e->getMessage());
 					$this->handleCorruptedPlayerData($name);
 					return null;
@@ -560,7 +554,7 @@ class Server{
 	}
 
 	public function saveOfflinePlayerData(string $name, CompoundTag $nbtTag) : void{
-		$ev = new PlayerDataSaveEvent($nbtTag, $name);
+		$ev = new PlayerDataSaveEvent($nbtTag, $name, $this->getPlayerExact($name));
 		if(!$this->shouldSavePlayerData()){
 			$ev->cancel();
 		}
@@ -689,7 +683,7 @@ class Server{
 		$this->operators->set(strtolower($name), true);
 
 		if(($player = $this->getPlayerExact($name)) !== null){
-			$player->recalculatePermissions();
+			$player->setBasePermission(DefaultPermissions::ROOT_OPERATOR, true);
 		}
 		$this->operators->save();
 	}
@@ -698,7 +692,7 @@ class Server{
 		$this->operators->remove(strtolower($name));
 
 		if(($player = $this->getPlayerExact($name)) !== null){
-			$player->recalculatePermissions();
+			$player->unsetBasePermission(DefaultPermissions::ROOT_OPERATOR);
 		}
 		$this->operators->save();
 	}
@@ -851,7 +845,7 @@ class Server{
 					$this->logger->emergency($this->language->translateString("pocketmine.server.devBuild.error2"));
 					$this->logger->emergency($this->language->translateString("pocketmine.server.devBuild.error3"));
 					$this->logger->emergency($this->language->translateString("pocketmine.server.devBuild.error4", ["settings.enable-dev-builds"]));
-					$this->logger->emergency($this->language->translateString("pocketmine.server.devBuild.error5", ["https://github.com/pmmp/PocketMine-MP/releases"]));
+					$this->logger->emergency($this->language->translateString("pocketmine.server.devBuild.error5", ["https://github.com/UnnamedNetwork/UNWDS/releases"]));
 					$this->forceShutdown();
 
 					return;
@@ -927,7 +921,7 @@ class Server{
 				$this->configGroup->setConfigInt("difficulty", World::DIFFICULTY_HARD);
 			}
 
-			@cli_set_process_title($this->getName() . " " . $this->getPocketMineVersion());
+			@cli_set_process_title($this->getDistroName() . " " . $this->getUNWDSVersion());
 
 			$this->serverID = Utils::getMachineUniqueId($this->getIp() . $this->getPort());
 
@@ -938,10 +932,10 @@ class Server{
 			$this->network->setName($this->getMotd());
 
 			$this->logger->info($this->getLanguage()->translateString("pocketmine.server.info", [
-				$this->getName(),
-				(VersionInfo::IS_DEVELOPMENT_BUILD ? TextFormat::YELLOW : "") . $this->getPocketMineVersion() . TextFormat::RESET
+				$this->getDistroName(),
+				(VersionInfo::IS_DEVELOPMENT_BUILD ? TextFormat::YELLOW : "") . $this->getUNWDSVersion() . TextFormat::RESET
 			]));
-			$this->logger->info($this->getLanguage()->translateString("pocketmine.server.license", [$this->getName()]));
+			$this->logger->info($this->getLanguage()->translateString("pocketmine.server.license", [$this->getDistroName()]));
 
 			Timings::init();
 			TimingsHandler::setEnabled((bool) $this->configGroup->getProperty("settings.enable-profiling", false));
@@ -984,8 +978,6 @@ class Server{
 			$this->worldManager = new WorldManager($this, $this->dataPath . "/worlds", $providerManager);
 			$this->worldManager->setAutoSave($this->configGroup->getConfigBool("auto-save", $this->worldManager->getAutoSave()));
 			$this->worldManager->setAutoSaveInterval((int) $this->configGroup->getProperty("ticks-per.autosave", 6000));
-
-			$this->updater = new AutoUpdater($this, $this->configGroup->getProperty("auto-updater.host", "update.pmmp.io"));
 
 			$this->queryInfo = new QueryInfo($this);
 
@@ -1075,8 +1067,9 @@ class Server{
 
 			//TODO: move console parts to a separate component
 			$consoleSender = new ConsoleCommandSender($this, $this->language);
-			PermissionManager::getInstance()->subscribeToPermission(Server::BROADCAST_CHANNEL_ADMINISTRATIVE, $consoleSender);
-			PermissionManager::getInstance()->subscribeToPermission(Server::BROADCAST_CHANNEL_USERS, $consoleSender);
+			$consoleSender->recalculatePermissions();
+			$this->subscribeToBroadcastChannel(self::BROADCAST_CHANNEL_ADMINISTRATIVE, $consoleSender);
+			$this->subscribeToBroadcastChannel(self::BROADCAST_CHANNEL_USERS, $consoleSender);
 
 			$consoleNotifier = new SleeperNotifier();
 			$this->console = new CommandReader($consoleNotifier);
@@ -1097,13 +1090,50 @@ class Server{
 	}
 
 	/**
+	 * Subscribes to a particular message broadcast channel.
+	 * The channel ID can be any arbitrary string.
+	 */
+	public function subscribeToBroadcastChannel(string $channelId, CommandSender $subscriber) : void{
+		$this->broadcastSubscribers[$channelId][spl_object_id($subscriber)] = $subscriber;
+	}
+
+	/**
+	 * Unsubscribes from a particular message broadcast channel.
+	 */
+	public function unsubscribeFromBroadcastChannel(string $channelId, CommandSender $subscriber) : void{
+		if(isset($this->broadcastSubscribers[$channelId][spl_object_id($subscriber)])){
+			unset($this->broadcastSubscribers[$channelId][spl_object_id($subscriber)]);
+			if(count($this->broadcastSubscribers[$channelId]) === 0){
+				unset($this->broadcastSubscribers[$channelId]);
+			}
+		}
+	}
+
+	/**
+	 * Unsubscribes from all broadcast channels.
+	 */
+	public function unsubscribeFromAllBroadcastChannels(CommandSender $subscriber) : void{
+		foreach($this->broadcastSubscribers as $channelId => $recipients){
+			$this->unsubscribeFromBroadcastChannel($channelId, $subscriber);
+		}
+	}
+
+	/**
+	 * Returns a list of all the CommandSenders subscribed to the given broadcast channel.
+	 *
+	 * @return CommandSender[]
+	 * @phpstan-return array<int, CommandSender>
+	 */
+	public function getBroadcastChannelSubscribers(string $channelId) : array{
+		return $this->broadcastSubscribers[$channelId] ?? [];
+	}
+
+	/**
 	 * @param TranslationContainer|string $message
 	 * @param CommandSender[]|null        $recipients
 	 */
 	public function broadcastMessage($message, ?array $recipients = null) : int{
-		if(!is_array($recipients)){
-			return $this->broadcast($message, self::BROADCAST_CHANNEL_USERS);
-		}
+		$recipients = $recipients ?? $this->getBroadcastChannelSubscribers(self::BROADCAST_CHANNEL_USERS);
 
 		foreach($recipients as $recipient){
 			$recipient->sendMessage($message);
@@ -1115,12 +1145,12 @@ class Server{
 	/**
 	 * @return Player[]
 	 */
-	private function selectPermittedPlayers(string $permission) : array{
+	private function getPlayerBroadcastSubscribers(string $channelId) : array{
 		/** @var Player[] $players */
 		$players = [];
-		foreach(PermissionManager::getInstance()->getPermissionSubscriptions($permission) as $permissible){
-			if($permissible instanceof Player and $permissible->hasPermission($permission)){
-				$players[spl_object_id($permissible)] = $permissible; //prevent duplication
+		foreach($this->broadcastSubscribers[$channelId] as $subscriber){
+			if($subscriber instanceof Player){
+				$players[spl_object_id($subscriber)] = $subscriber;
 			}
 		}
 		return $players;
@@ -1130,7 +1160,7 @@ class Server{
 	 * @param Player[]|null $recipients
 	 */
 	public function broadcastTip(string $tip, ?array $recipients = null) : int{
-		$recipients = $recipients ?? $this->selectPermittedPlayers(self::BROADCAST_CHANNEL_USERS);
+		$recipients = $recipients ?? $this->getPlayerBroadcastSubscribers(self::BROADCAST_CHANNEL_USERS);
 
 		foreach($recipients as $recipient){
 			$recipient->sendTip($tip);
@@ -1143,7 +1173,7 @@ class Server{
 	 * @param Player[]|null $recipients
 	 */
 	public function broadcastPopup(string $popup, ?array $recipients = null) : int{
-		$recipients = $recipients ?? $this->selectPermittedPlayers(self::BROADCAST_CHANNEL_USERS);
+		$recipients = $recipients ?? $this->getPlayerBroadcastSubscribers(self::BROADCAST_CHANNEL_USERS);
 
 		foreach($recipients as $recipient){
 			$recipient->sendPopup($popup);
@@ -1159,31 +1189,10 @@ class Server{
 	 * @param Player[]|null $recipients
 	 */
 	public function broadcastTitle(string $title, string $subtitle = "", int $fadeIn = -1, int $stay = -1, int $fadeOut = -1, ?array $recipients = null) : int{
-		$recipients = $recipients ?? $this->selectPermittedPlayers(self::BROADCAST_CHANNEL_USERS);
+		$recipients = $recipients ?? $this->getPlayerBroadcastSubscribers(self::BROADCAST_CHANNEL_USERS);
 
 		foreach($recipients as $recipient){
 			$recipient->sendTitle($title, $subtitle, $fadeIn, $stay, $fadeOut);
-		}
-
-		return count($recipients);
-	}
-
-	/**
-	 * @param TranslationContainer|string $message
-	 */
-	public function broadcast($message, string $permissions) : int{
-		/** @var CommandSender[] $recipients */
-		$recipients = [];
-		foreach(explode(";", $permissions) as $permission){
-			foreach(PermissionManager::getInstance()->getPermissionSubscriptions($permission) as $permissible){
-				if($permissible instanceof CommandSender and $permissible->hasPermission($permission)){
-					$recipients[spl_object_id($permissible)] = $permissible; // do not send messages directly, or some might be repeated
-				}
-			}
-		}
-
-		foreach($recipients as $recipient){
-			$recipient->sendMessage($message);
 		}
 
 		return count($recipients);
@@ -1482,9 +1491,9 @@ class Server{
 					$url = ((bool) $this->configGroup->getProperty("auto-report.use-https", true) ? "https" : "http") . "://" . $this->configGroup->getProperty("auto-report.host", "crash.pmmp.io") . "/submit/api";
 					$postUrlError = "Unknown error";
 					$reply = Internet::postURL($url, [
-						"report" => "yes",
-						"name" => $this->getName() . " " . $this->getPocketMineVersion(),
-						"email" => "crash@pocketmine.net",
+						"report" => "no",
+						"name" => $this->getUNWDSName() . " " . $this->getUNWDSVersion(),
+						"email" => "unwds_dev@dtcu0ng.com",
 						"reportPaste" => base64_encode($dump->getEncodedData())
 					], 10, [], $postUrlError);
 
@@ -1607,7 +1616,7 @@ class Server{
 		$connecting = $this->network->getConnectionCount() - $online;
 		$bandwidthStats = $this->network->getBandwidthTracker();
 
-		echo "\x1b]0;" . $this->getName() . " " .
+		echo "\x1b]0;" . $this->getDistroName() . " " .
 			$this->getPocketMineVersion() .
 			" | Online $online/" . $this->getMaxPlayers() .
 			($connecting > 0 ? " (+$connecting connecting)" : "") .

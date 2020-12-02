@@ -30,15 +30,15 @@ use function str_repeat;
 final class VersionInfo{
 	// Trying to deploy SpoonMask v3 to PM4
 	     // PocketMine-MP's default version constants, this will bypass the Spoon detector
-		  public const NAME = "PocketMine-MP";
-		  public const BASE_VERSION = "4.0.0";
-		  public const IS_DEVELOPMENT_BUILD = true;
+		 public const NAME = "PocketMine-MP";
+		 public const BASE_VERSION = "4.0.0";
+		 public const IS_DEVELOPMENT_BUILD = true;
 
-		 // The UNWDS version strings (SpoonMask v3)
-	      public const DISTRO_NAME = "UNWDS";
-	      public const CODENAME = "NEra";
-	      public const UNWDS_VERSION = "3.0.0";
-		  public const BUILD_NUMBER = 0101;
+		// The UNWDS version strings (SpoonMask v3)
+		 public const DISTRO_NAME = "UNWDS";
+		 public const CODENAME = "NEra";
+		 public const UNWDS_VERSION = "3.0.0";
+		 public const BUILD_NUMBER = 0102;
 
 	private function __construct(){
 		//NOOP

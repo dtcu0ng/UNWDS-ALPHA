@@ -95,6 +95,7 @@ use pocketmine\network\mcpe\protocol\types\PlayerListEntry;
 use pocketmine\network\mcpe\protocol\types\PlayerPermissions;
 use pocketmine\network\mcpe\protocol\UpdateAttributesPacket;
 use pocketmine\network\NetworkSessionManager;
+use pocketmine\permission\DefaultPermissions;
 use pocketmine\player\GameMode;
 use pocketmine\player\Player;
 use pocketmine\player\PlayerInfo;
@@ -248,6 +249,16 @@ class NetworkSession{
 		$this->disposeHooks->add(static function() use ($effectManager, $effectAddHook, $effectRemoveHook) : void{
 			$effectManager->getEffectAddHooks()->remove($effectAddHook);
 			$effectManager->getEffectRemoveHooks()->remove($effectRemoveHook);
+		});
+
+		$permissionHooks = $this->player->getPermissionRecalculationCallbacks();
+		$permissionHooks->add($permHook = function() : void{
+			$this->logger->debug("Syncing available commands and adventure settings due to permission recalculation");
+			$this->syncAdventureSettings($this->player);
+			$this->syncAvailableCommands();
+		});
+		$this->disposeHooks->add(static function() use ($permissionHooks, $permHook) : void{
+			$permissionHooks->remove($permHook);
 		});
 	}
 
@@ -722,8 +733,9 @@ class NetworkSession{
 
 		//TODO: permission flags
 
-		$pk->commandPermission = ($for->isOp() ? AdventureSettingsPacket::PERMISSION_OPERATOR : AdventureSettingsPacket::PERMISSION_NORMAL);
-		$pk->playerPermission = ($for->isOp() ? PlayerPermissions::OPERATOR : PlayerPermissions::MEMBER);
+		$isOp = $for->hasPermission(DefaultPermissions::ROOT_OPERATOR);
+		$pk->commandPermission = ($isOp ? AdventureSettingsPacket::PERMISSION_OPERATOR : AdventureSettingsPacket::PERMISSION_NORMAL);
+		$pk->playerPermission = ($isOp ? PlayerPermissions::OPERATOR : PlayerPermissions::MEMBER);
 		$pk->entityUniqueId = $for->getId();
 
 		$this->sendDataPacket($pk);
