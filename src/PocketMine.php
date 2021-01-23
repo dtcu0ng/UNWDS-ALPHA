@@ -192,7 +192,7 @@ namespace pocketmine {
 		define('pocketmine\COMPOSER_AUTOLOADER_PATH', $bootstrap);
 		require_once(\pocketmine\COMPOSER_AUTOLOADER_PATH);
 
-		$composerGitHash = InstalledVersions::getReference('dtcu0ng/unwds-alpha');
+		$composerGitHash = InstalledVersions::getReference('dtcu0ng/unwds_alpha');
 		if($composerGitHash !== null){
 			//we can't verify dependency versions if we were installed without using git
 			$currentGitHash = explode("-", VersionInfo::getGitHash())[0];
