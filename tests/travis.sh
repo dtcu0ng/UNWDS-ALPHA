@@ -18,8 +18,6 @@ dateAndMonth=`date`
 BUILDPHPV=$(php -r 'echo PHP_VERSION;')
 NBPHPV="7.3.25"
 OLDBLD=$(expr $TRAVIS_BUILD_NUMBER - 1)
-#Rename phar build number to the same as Travis build number
-sed -i 's/333/'$TRAVIS_BUILD_NUMBER'/g' src/VersionInfo.php
 
 rm -rf "$DATA_DIR"
 rm UNWDS.phar 2> /dev/null
