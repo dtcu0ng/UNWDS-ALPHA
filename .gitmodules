@@ -1,1 +1,13 @@
 
+[submodule "resources/vanilla"]
+	path = resources/vanilla
+	url = https://github.com/pmmp/BedrockData.git
+[submodule "tests/plugins/DevTools"]
+	path = tests/plugins/DevTools
+	url = https://github.com/pmmp/DevTools.git
+[submodule "build/preprocessor"]
+	path = build/preprocessor
+	url = https://github.com/pmmp/PreProcessor.git
+[submodule "build/php"]
+	path = build/php
+	url = https://github.com/pmmp/php-build-scripts.git
