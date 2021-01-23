@@ -53,16 +53,17 @@ class VersionCommand extends VanillaCommand{
 		if(count($args) === 0){
 			$sender->sendMessage(new TranslationContainer("pocketmine.server.info.extended", [
 				$sender->getServer()->getDistroName(),
+				$sender->getServer()->getDistroVersion(),
 				$sender->getServer()->getCodename(),
-				$sender->getServer()->getUNWDSVersion(),
-				$sender->getServer()->getAPIVersion(),
 				$sender->getServer()->getVersion(),
 				ProtocolInfo::CURRENT_PROTOCOL
-			]));
+			]
+			));
 			$sender->sendMessage(new TranslationContainer("pocketmine.mask.info", [
 				$sender->getServer()->getName(),
 				$sender->getServer()->getAPIVersion(),
-			]));
+			]
+			));
 		}else{
 			$pluginName = implode(" ", $args);
 			$exactPlugin = $sender->getServer()->getPluginManager()->getPlugin($pluginName);

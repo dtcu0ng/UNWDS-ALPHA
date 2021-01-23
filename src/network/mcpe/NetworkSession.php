@@ -31,7 +31,6 @@ use pocketmine\entity\effect\EffectInstance;
 use pocketmine\entity\Entity;
 use pocketmine\entity\Human;
 use pocketmine\entity\Living;
-use pocketmine\event\player\PlayerCreationEvent;
 use pocketmine\event\server\DataPacketReceiveEvent;
 use pocketmine\event\server\DataPacketSendEvent;
 use pocketmine\form\Form;
@@ -177,16 +176,20 @@ class NetworkSession{
 	/** @var PacketSender */
 	private $sender;
 
+	/** @var PacketBroadcaster */
+	private $broadcaster;
+
 	/**
 	 * @var \Closure[]|Set
 	 * @phpstan-var Set<\Closure() : void>
 	 */
 	private $disposeHooks;
 
-	public function __construct(Server $server, NetworkSessionManager $manager, PacketPool $packetPool, PacketSender $sender, Compressor $compressor, string $ip, int $port){
+	public function __construct(Server $server, NetworkSessionManager $manager, PacketPool $packetPool, PacketSender $sender, PacketBroadcaster $broadcaster, Compressor $compressor, string $ip, int $port){
 		$this->server = $server;
 		$this->manager = $manager;
 		$this->sender = $sender;
+		$this->broadcaster = $broadcaster;
 		$this->ip = $ip;
 		$this->port = $port;
 
@@ -226,16 +229,7 @@ class NetworkSession{
 	}
 
 	protected function createPlayer() : void{
-		$ev = new PlayerCreationEvent($this);
-		$ev->call();
-		$class = $ev->getPlayerClass();
-
-		//TODO: make this async
-		//TODO: this really has no business being in NetworkSession at all - what about allowing it to be provided by PlayerCreationEvent?
-		$namedtag = $this->server->getOfflinePlayerData($this->info->getUsername());
-
-		/** @see Player::__construct() */
-		$this->player = new $class($this->server, $this, $this->info, $this->authenticated, $namedtag);
+		$this->player = $this->server->createPlayer($this, $this->info, $this->authenticated);
 
 		$this->invManager = new InventoryManager($this->player, $this);
 
@@ -322,25 +316,25 @@ class NetworkSession{
 		}
 
 		if($this->cipher !== null){
-			Timings::$playerNetworkReceiveDecryptTimer->startTiming();
+			Timings::$playerNetworkReceiveDecrypt->startTiming();
 			try{
 				$payload = $this->cipher->decrypt($payload);
 			}catch(DecryptionException $e){
 				$this->logger->debug("Encrypted packet: " . base64_encode($payload));
 				throw BadPacketException::wrap($e, "Packet decryption error");
 			}finally{
-				Timings::$playerNetworkReceiveDecryptTimer->stopTiming();
+				Timings::$playerNetworkReceiveDecrypt->stopTiming();
 			}
 		}
 
-		Timings::$playerNetworkReceiveDecompressTimer->startTiming();
+		Timings::$playerNetworkReceiveDecompress->startTiming();
 		try{
 			$stream = new PacketBatch($this->compressor->decompress($payload));
 		}catch(DecompressionException $e){
 			$this->logger->debug("Failed to decompress packet: " . base64_encode($payload));
 			throw BadPacketException::wrap($e, "Compressed packet batch decode error");
 		}finally{
-			Timings::$playerNetworkReceiveDecompressTimer->stopTiming();
+			Timings::$playerNetworkReceiveDecompress->stopTiming();
 		}
 
 		try{
@@ -449,6 +443,8 @@ class NetworkSession{
 		}
 	}
 
+	public function getBroadcaster() : PacketBroadcaster{ return $this->broadcaster; }
+
 	public function getCompressor() : Compressor{
 		return $this->compressor;
 	}
@@ -488,9 +484,9 @@ class NetworkSession{
 
 	private function sendEncoded(string $payload, bool $immediate = false) : void{
 		if($this->cipher !== null){
-			Timings::$playerNetworkSendEncryptTimer->startTiming();
+			Timings::$playerNetworkSendEncrypt->startTiming();
 			$payload = $this->cipher->encrypt($payload);
-			Timings::$playerNetworkSendEncryptTimer->stopTiming();
+			Timings::$playerNetworkSendEncrypt->stopTiming();
 		}
 		$this->sender->send($payload, $immediate);
 	}
@@ -694,6 +690,10 @@ class NetworkSession{
 			$pk->onGround = $this->player->onGround;
 
 			$this->sendDataPacket($pk);
+
+			if($this->handler instanceof InGamePacketHandler){
+				$this->handler->forceMoveSync = true;
+			}
 		}
 	}
 
@@ -863,12 +863,12 @@ class NetworkSession{
 					$this->logger->debug("Tried to send no-longer-active chunk $chunkX $chunkZ in world " . $world->getFolderName());
 					return;
 				}
-				$currentWorld->timings->syncChunkSendTimer->startTiming();
+				$currentWorld->timings->syncChunkSend->startTiming();
 				try{
 					$this->queueCompressed($promise);
 					$onCompletion($chunkX, $chunkZ);
 				}finally{
-					$currentWorld->timings->syncChunkSendTimer->stopTiming();
+					$currentWorld->timings->syncChunkSend->stopTiming();
 				}
 			}
 		);

@@ -35,6 +35,7 @@ use pocketmine\command\SimpleCommandMap;
 use pocketmine\crafting\CraftingManager;
 use pocketmine\crafting\CraftingManagerFromDataHelper;
 use pocketmine\event\HandlerListManager;
+use pocketmine\event\player\PlayerCreationEvent;
 use pocketmine\event\player\PlayerDataSaveEvent;
 use pocketmine\event\server\CommandEvent;
 use pocketmine\event\server\DataPacketSendEvent;
@@ -52,11 +53,13 @@ use pocketmine\network\mcpe\compression\Compressor;
 use pocketmine\network\mcpe\compression\ZlibCompressor;
 use pocketmine\network\mcpe\encryption\EncryptionContext;
 use pocketmine\network\mcpe\NetworkSession;
+use pocketmine\network\mcpe\PacketBroadcaster;
 use pocketmine\network\mcpe\protocol\ClientboundPacket;
 use pocketmine\network\mcpe\protocol\ProtocolInfo;
 use pocketmine\network\mcpe\protocol\serializer\PacketBatch;
 use pocketmine\network\mcpe\raklib\RakLibInterface;
 use pocketmine\network\Network;
+use pocketmine\network\query\DedicatedQueryNetworkInterface;
 use pocketmine\network\query\QueryHandler;
 use pocketmine\network\query\QueryInfo;
 use pocketmine\network\upnp\UPnP;
@@ -65,6 +68,7 @@ use pocketmine\permission\DefaultPermissions;
 use pocketmine\player\GameMode;
 use pocketmine\player\OfflinePlayer;
 use pocketmine\player\Player;
+use pocketmine\player\PlayerInfo;
 use pocketmine\plugin\PharPluginLoader;
 use pocketmine\plugin\Plugin;
 use pocketmine\plugin\PluginEnableOrder;
@@ -107,7 +111,6 @@ use function file_get_contents;
 use function file_put_contents;
 use function filemtime;
 use function get_class;
-use function getmypid;
 use function implode;
 use function ini_set;
 use function is_a;
@@ -282,20 +285,20 @@ class Server{
 		return VersionInfo::NAME;
 	}
 
-	public function getDistroName() : string{
-		return VersionInfo::DISTRO_NAME;
+	public function isRunning() : bool{
+		return $this->isRunning;
 	}
 
-	public function getUNWDSVersion() : string{
-		return VersionInfo::UNWDS_VERSION;
+	public function getDistroName() : string{
+		return \pocketmine\DISTRONAME;
+	}
+	
+	public function getDistroVersion() : string{
+		return \pocketmine\DISTROVERSION;
 	}
 
 	public function getCodename() : string{
-		return VersionInfo::CODENAME;
-	}
-
-	public function isRunning() : bool{
-		return $this->isRunning;
+		return \pocketmine\CODENAME;
 	}
 
 	public function getPocketMineVersion() : string{
@@ -396,7 +399,7 @@ class Server{
 	}
 
 	public function getMotd() : string{
-		return $this->configGroup->getConfigString("motd", VersionInfo::DISTRO_NAME . " Server");
+		return $this->configGroup->getConfigString("motd", \pocketmine\DISTRONAME . " Server");
 	}
 
 	/**
@@ -574,6 +577,23 @@ class Server{
 		}
 	}
 
+	public function createPlayer(NetworkSession $session, PlayerInfo $playerInfo, bool $authenticated) : Player{
+		$ev = new PlayerCreationEvent($session);
+		$ev->call();
+		$class = $ev->getPlayerClass();
+
+		//TODO: make this async
+		//TODO: what about allowing this to be provided by PlayerCreationEvent?
+		$namedtag = $this->getOfflinePlayerData($playerInfo->getUsername());
+
+		/**
+		 * @see Player::__construct()
+		 * @var Player $player
+		 */
+		$player = new $class($this, $session, $playerInfo, $authenticated, $namedtag);
+		return $player;
+	}
+
 	/**
 	 * Returns an online player whose name begins with or equals the given string (case insensitive).
 	 * The closest match will be returned, or null if there are no online matches.
@@ -612,27 +632,6 @@ class Server{
 		}
 
 		return null;
-	}
-
-	/**
-	 * Returns a list of online players whose names contain with the given string (case insensitive).
-	 * If an exact match is found, only that match is returned.
-	 *
-	 * @return Player[]
-	 */
-	public function matchPlayer(string $partialName) : array{
-		$partialName = strtolower($partialName);
-		$matchedPlayers = [];
-		foreach($this->getOnlinePlayers() as $player){
-			if(strtolower($player->getName()) === $partialName){
-				$matchedPlayers = [$player];
-				break;
-			}elseif(stripos($player->getName(), $partialName) !== false){
-				$matchedPlayers[] = $player;
-			}
-		}
-
-		return $matchedPlayers;
 	}
 
 	/**
@@ -785,6 +784,12 @@ class Server{
 			$this->dataPath = realpath($dataPath) . DIRECTORY_SEPARATOR;
 			$this->pluginPath = realpath($pluginPath) . DIRECTORY_SEPARATOR;
 
+			$this->logger->info("Starting UNWDS...\n\n");
+			$this->logger->info("§aUNWDS §fis a fork of PocketMine-MP, made by and for §2UnnamedNetwork.");
+			$this->logger->info("§fVersion: §b" . $this->getUNWDSVersion() . "§7 (" . $this->getCodename() . ")");
+			$this->logger->info("§fTarget Bedrock version: §d" . $this->getVersion());
+			$this->logger->info("Latest source code is available at §6https://github.com/UnnamedNetwork/UNWDS\n\n");
+
 			$this->logger->info("Loading server configuration");
 			if(!file_exists($this->dataPath . "pocketmine.yml")){
 				$content = file_get_contents(\pocketmine\RESOURCE_PATH . "pocketmine.yml");
@@ -797,7 +802,7 @@ class Server{
 			$this->configGroup = new ServerConfigGroup(
 				new Config($this->dataPath . "pocketmine.yml", Config::YAML, []),
 				new Config($this->dataPath . "server.properties", Config::PROPERTIES, [
-					"motd" => VersionInfo::DISTRO_NAME . " Server",
+					"motd" => \pocketmine\DISTRONAME . " Server",
 					"server-port" => 19132,
 					"white-list" => false,
 					"max-players" => 20,
@@ -841,7 +846,7 @@ class Server{
 
 			if(VersionInfo::IS_DEVELOPMENT_BUILD){
 				if(!((bool) $this->configGroup->getProperty("settings.enable-dev-builds", false))){
-					$this->logger->emergency($this->language->translateString("pocketmine.server.devBuild.error1", [VersionInfo::DISTRO_NAME]));
+					$this->logger->emergency($this->language->translateString("pocketmine.server.devBuild.error1", [\pocketmine\DISTRONAME]));
 					$this->logger->emergency($this->language->translateString("pocketmine.server.devBuild.error2"));
 					$this->logger->emergency($this->language->translateString("pocketmine.server.devBuild.error3"));
 					$this->logger->emergency($this->language->translateString("pocketmine.server.devBuild.error4", ["settings.enable-dev-builds"]));
@@ -852,7 +857,7 @@ class Server{
 				}
 
 				$this->logger->warning(str_repeat("-", 40));
-				$this->logger->warning($this->language->translateString("pocketmine.server.devBuild.warning1", [VersionInfo::DISTRO_NAME]));
+				$this->logger->warning($this->language->translateString("pocketmine.server.devBuild.warning1", [\pocketmine\DISTRONAME]));
 				$this->logger->warning($this->language->translateString("pocketmine.server.devBuild.warning2"));
 				$this->logger->warning($this->language->translateString("pocketmine.server.devBuild.warning3"));
 				$this->logger->warning(str_repeat("-", 40));
@@ -860,7 +865,7 @@ class Server{
 
 			$this->memoryManager = new MemoryManager($this);
 
-			$this->logger->info($this->getLanguage()->translateString("pocketmine.server.start", [TextFormat::AQUA . $this->getVersion() . TextFormat::RESET]));
+			$this->logger->info($this->getLanguage()->translateString("pocketmine.server.start", [TextFormat::AQUA . $this->getDistroVersion() . TextFormat::RESET]));
 
 			if(($poolSize = $this->configGroup->getProperty("settings.async-workers", "auto")) === "auto"){
 				$poolSize = 2;
@@ -873,7 +878,7 @@ class Server{
 				$poolSize = max(1, (int) $poolSize);
 			}
 
-			$this->asyncPool = new AsyncPool($poolSize, max(-1, (int) $this->configGroup->getProperty("memory.async-worker-hard-limit", 256)), $this->autoloader, $this->logger);
+			$this->asyncPool = new AsyncPool($poolSize, max(-1, (int) $this->configGroup->getProperty("memory.async-worker-hard-limit", 256)), $this->autoloader, $this->logger, $this->tickSleeper);
 
 			$netCompressionThreshold = -1;
 			if($this->configGroup->getProperty("network.batch-threshold", 256) >= 0){
@@ -921,7 +926,7 @@ class Server{
 				$this->configGroup->setConfigInt("difficulty", World::DIFFICULTY_HARD);
 			}
 
-			@cli_set_process_title($this->getDistroName() . " " . $this->getUNWDSVersion());
+			@cli_set_process_title($this->getDistroName() . " " . $this->getDistroVersion());
 
 			$this->serverID = Utils::getMachineUniqueId($this->getIp() . $this->getPort());
 
@@ -932,8 +937,8 @@ class Server{
 			$this->network->setName($this->getMotd());
 
 			$this->logger->info($this->getLanguage()->translateString("pocketmine.server.info", [
-				$this->getDistroName(),
-				(VersionInfo::IS_DEVELOPMENT_BUILD ? TextFormat::YELLOW : "") . $this->getUNWDSVersion() . TextFormat::RESET
+				$this->geDistroName(),
+				(VersionInfo::IS_DEVELOPMENT_BUILD ? TextFormat::YELLOW : "") . $this->getPocketMineVersion() . TextFormat::RESET
 			]));
 			$this->logger->info($this->getLanguage()->translateString("pocketmine.server.license", [$this->getDistroName()]));
 
@@ -948,6 +953,8 @@ class Server{
 			$this->craftingManager = CraftingManagerFromDataHelper::make(\pocketmine\RESOURCE_PATH . '/vanilla/recipes.json');
 
 			$this->resourceManager = new ResourcePackManager($this->getDataPath() . "resource_packs" . DIRECTORY_SEPARATOR, $this->logger);
+
+			$this->logger->info($this->getLanguage()->translateString("pocketmine.spoonmask.enabled"));
 
 			$pluginGraylist = null;
 			$graylistFile = $this->dataPath . "plugin_list.yml";
@@ -1035,10 +1042,15 @@ class Server{
 
 			$this->enablePlugins(PluginEnableOrder::POSTWORLD());
 
-			$this->network->registerInterface(new RakLibInterface($this));
+			$useQuery = $this->configGroup->getConfigBool("enable-query", true);
+			if(!$this->network->registerInterface(new RakLibInterface($this)) && $useQuery){
+				//RakLib would normally handle the transport for Query packets
+				//if it's not registered we need to make sure Query still works
+				$this->network->registerInterface(new DedicatedQueryNetworkInterface($this->getIp(), $this->getPort(), new \PrefixedLogger($this->logger, "Dedicated Query Interface")));
+			}
 			$this->logger->info($this->getLanguage()->translateString("pocketmine.server.networkStart", [$this->getIp(), $this->getPort()]));
 
-			if($this->configGroup->getConfigBool("enable-query", true)){
+			if($useQuery){
 				$this->network->registerRawPacketHandler(new QueryHandler($this));
 			}
 
@@ -1074,11 +1086,11 @@ class Server{
 			$consoleNotifier = new SleeperNotifier();
 			$this->console = new CommandReader($consoleNotifier);
 			$this->tickSleeper->addNotifier($consoleNotifier, function() use ($consoleSender) : void{
-				Timings::$serverCommandTimer->startTiming();
+				Timings::$serverCommand->startTiming();
 				while(($line = $this->console->getLine()) !== null){
 					$this->dispatchCommand($consoleSender, $line);
 				}
-				Timings::$serverCommandTimer->stopTiming();
+				Timings::$serverCommand->stopTiming();
 			});
 			$this->console->start(PTHREADS_INHERIT_NONE);
 
@@ -1226,33 +1238,17 @@ class Server{
 			}
 			$recipients = $ev->getTargets();
 
-			$stream = PacketBatch::fromPackets(...$ev->getPackets());
-
-			/** @var Compressor[] $compressors */
-			$compressors = [];
-			/** @var NetworkSession[][] $compressorTargets */
-			$compressorTargets = [];
+			/** @var PacketBroadcaster[] $broadcasters */
+			$broadcasters = [];
+			/** @var NetworkSession[][] $broadcasterTargets */
+			$broadcasterTargets = [];
 			foreach($recipients as $recipient){
-				$compressor = $recipient->getCompressor();
-				$compressorId = spl_object_id($compressor);
-				//TODO: different compressors might be compatible, it might not be necessary to split them up by object
-				$compressors[$compressorId] = $compressor;
-				$compressorTargets[$compressorId][] = $recipient;
+				$broadcaster = $recipient->getBroadcaster();
+				$broadcasters[spl_object_id($broadcaster)] = $broadcaster;
+				$broadcasterTargets[spl_object_id($broadcaster)][] = $recipient;
 			}
-
-			foreach($compressors as $compressorId => $compressor){
-				if(!$compressor->willCompress($stream->getBuffer())){
-					foreach($compressorTargets[$compressorId] as $target){
-						foreach($ev->getPackets() as $pk){
-							$target->addToSendBuffer($pk);
-						}
-					}
-				}else{
-					$promise = $this->prepareBatch($stream, $compressor);
-					foreach($compressorTargets[$compressorId] as $target){
-						$target->queueCompressed($promise);
-					}
-				}
+			foreach($broadcasters as $broadcaster){
+				$broadcaster->broadcastPackets($broadcasterTargets[spl_object_id($broadcaster)], $packets);
 			}
 
 			return true;
@@ -1266,7 +1262,7 @@ class Server{
 	 */
 	public function prepareBatch(PacketBatch $stream, Compressor $compressor, ?bool $sync = null) : CompressBatchPromise{
 		try{
-			Timings::$playerNetworkSendCompressTimer->startTiming();
+			Timings::$playerNetworkSendCompress->startTiming();
 
 			$buffer = $stream->getBuffer();
 
@@ -1284,7 +1280,7 @@ class Server{
 
 			return $promise;
 		}finally{
-			Timings::$playerNetworkSendCompressTimer->stopTiming();
+			Timings::$playerNetworkSendCompress->stopTiming();
 		}
 	}
 
@@ -1393,7 +1389,7 @@ class Server{
 		}catch(\Throwable $e){
 			$this->logger->logException($e);
 			$this->logger->emergency("Crashed while crashing, killing process");
-			@Process::kill(getmypid());
+			@Process::kill(Process::pid());
 		}
 
 	}
@@ -1488,12 +1484,12 @@ class Server{
 				}
 
 				if($report){
-					$url = ((bool) $this->configGroup->getProperty("auto-report.use-https", true) ? "https" : "http") . "://" . $this->configGroup->getProperty("auto-report.host", "crash.pmmp.io") . "/submit/api";
+					$url = ((bool) $this->configGroup->getProperty("auto-report.use-https", true) ? "https" : "http") . "://" . $this->configGroup->getProperty("auto-report.host", "crash.dtcg.xyz") . "/submit/api";
 					$postUrlError = "Unknown error";
 					$reply = Internet::postURL($url, [
-						"report" => "no",
-						"name" => $this->getUNWDSName() . " " . $this->getUNWDSVersion(),
-						"email" => "unwds_dev@dtcu0ng.com",
+						"report" => "yes",
+						"name" => $this->getDistroName() . " " . $this->getDistroVersion(),
+						"email" => "crash@unw.dtcu0ng.com",
 						"reportPaste" => base64_encode($dump->getEncodedData())
 					], 10, [], $postUrlError);
 
@@ -1526,7 +1522,7 @@ class Server{
 			echo "--- Waiting $spacing seconds to throttle automatic restart (you can kill the process safely now) ---" . PHP_EOL;
 			sleep($spacing);
 		}
-		@Process::kill(getmypid());
+		@Process::kill(Process::pid());
 		exit(1);
 	}
 
@@ -1606,7 +1602,7 @@ class Server{
 	}
 
 	private function titleTick() : void{
-		Timings::$titleTickTimer->startTiming();
+		Timings::$titleTick->startTiming();
 		$d = Process::getRealMemoryUsage();
 
 		$u = Process::getAdvancedMemoryUsage();
@@ -1626,7 +1622,7 @@ class Server{
 			" kB/s | TPS " . $this->getTicksPerSecondAverage() .
 			" | Load " . $this->getTickUsageAverage() . "%\x07";
 
-		Timings::$titleTickTimer->stopTiming();
+		Timings::$titleTick->stopTiming();
 	}
 
 	/**
@@ -1638,23 +1634,23 @@ class Server{
 			return;
 		}
 
-		Timings::$serverTickTimer->startTiming();
+		Timings::$serverTick->startTiming();
 
 		++$this->tickCounter;
 
-		Timings::$schedulerTimer->startTiming();
+		Timings::$scheduler->startTiming();
 		$this->pluginManager->tickSchedulers($this->tickCounter);
-		Timings::$schedulerTimer->stopTiming();
+		Timings::$scheduler->stopTiming();
 
-		Timings::$schedulerAsyncTimer->startTiming();
+		Timings::$schedulerAsync->startTiming();
 		$this->asyncPool->collectTasks();
-		Timings::$schedulerAsyncTimer->stopTiming();
+		Timings::$schedulerAsync->stopTiming();
 
 		$this->worldManager->tick($this->tickCounter);
 
-		Timings::$connectionTimer->startTiming();
+		Timings::$connection->startTiming();
 		$this->network->tick();
-		Timings::$connectionTimer->stopTiming();
+		Timings::$connection->stopTiming();
 
 		if(($this->tickCounter % 20) === 0){
 			if($this->doTitleTick){
@@ -1688,7 +1684,7 @@ class Server{
 
 		$this->getMemoryManager()->check();
 
-		Timings::$serverTickTimer->stopTiming();
+		Timings::$serverTick->stopTiming();
 
 		$now = microtime(true);
 		$this->currentTPS = min(20, 1 / max(0.001, $now - $tickTime));

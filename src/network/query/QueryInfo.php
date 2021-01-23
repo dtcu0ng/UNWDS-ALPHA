@@ -83,7 +83,7 @@ final class QueryInfo{
 
 		$this->gametype = ($server->getGamemode()->getMagicNumber() & 0x01) === 0 ? "SMP" : "CMP";
 		$this->version = $server->getVersion();
-		$this->server_engine = $server->getDistroName() . " " . $server->getUNWDSVersion();
+		$this->server_engine = $server->getDistroName() . " " . $server->getDistroVersion();
 		$world = $server->getWorldManager()->getDefaultWorld();
 		$this->map = $world === null ? "unknown" : $world->getDisplayName();
 		$this->numPlayers = count($this->players);
@@ -207,7 +207,7 @@ final class QueryInfo{
 			$plist .= ":";
 			foreach($this->plugins as $p){
 				$d = $p->getDescription();
-				$plist .= " " . str_replace([";", ":", " "], ["", "", "_"], $d->getDistroName()) . " " . str_replace([";", ":", " "], ["", "", "_"], $d->getUNWDSVersion()) . ";";
+				$plist .= " " . str_replace([";", ":", " "], ["", "", "_"], $d->getName()) . " " . str_replace([";", ":", " "], ["", "", "_"], $d->getVersion()) . ";";
 			}
 			$plist = substr($plist, 0, -1);
 		}

@@ -28,20 +28,36 @@ use pocketmine\utils\VersionString;
 use function str_repeat;
 
 final class VersionInfo{
-	// Trying to deploy SpoonMask v3 to PM4
-	     // PocketMine-MP's default version constants, this will bypass the Spoon detector
-		 public const NAME = "PocketMine-MP";
-		 public const BASE_VERSION = "4.0.0";
-		 public const IS_DEVELOPMENT_BUILD = true;
-
-		// The UNWDS version strings (SpoonMask v3)
-		 public const DISTRO_NAME = "UNWDS";
-		 public const CODENAME = "NEra";
-		 public const UNWDS_VERSION = "3.0.0";
-		 public const BUILD_NUMBER = 0104;
+	public const NAME = "PocketMine-MP";
+	public const BASE_VERSION = "4.0.0";
+	public const IS_DEVELOPMENT_BUILD = true;
+	public const BUILD_NUMBER = 0333;
 
 	private function __construct(){
 		//NOOP
+	}
+
+	/** @var string|null */
+	private static $gitHash = null;
+
+	public static function getGitHash() : string{
+		if(self::$gitHash === null){
+			$gitHash = str_repeat("00", 20);
+
+			if(\Phar::running(true) === ""){
+				$gitHash = Git::getRepositoryStatePretty(\pocketmine\PATH);
+			}else{
+				$phar = new \Phar(\Phar::running(false));
+				$meta = $phar->getMetadata();
+				if(isset($meta["git"])){
+					$gitHash = $meta["git"];
+				}
+			}
+
+			self::$gitHash = $gitHash;
+		}
+
+		return self::$gitHash;
 	}
 
 	/** @var VersionString|null */

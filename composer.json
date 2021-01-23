@@ -1,13 +1,12 @@
 {
-   "name": "pocketmine/pocketmine-mp",
-   "description": "A server software for Minecraft: Pocket Edition written in PHP",
+   "name": "dtcu0ng/unwds_alpha",
+   "description": "Software for Minecraft: BE server making, powered by PocketMine-MP",
    "type": "project",
-   "homepage": "https://pmmp.io",
+   "homepage": "https://play.dtcg.xyz",
    "license": "LGPL-3.0",
    "require": {
-      "php": ">=7.3.0",
+      "php": ">=7.4.0",
       "php-64bit": "*",
-      "ext-bcmath": "*",
       "ext-chunkutils2": "^0.1.0",
       "ext-curl": "*",
       "ext-crypto": "^0.3.1",
@@ -51,7 +50,7 @@
       "composer-runtime-api": "^2.0"
    },
    "require-dev": {
-      "phpstan/phpstan": "0.12.57",
+      "phpstan/phpstan": "0.12.67",
       "phpstan/phpstan-phpunit": "^0.12.6",
       "phpstan/phpstan-strict-rules": "^0.12.2",
       "phpunit/phpunit": "^9.2"
@@ -72,8 +71,9 @@
    },
    "config": {
       "platform": {
-         "php": "7.3.0"
-      }
+         "php": "7.4.0"
+      },
+      "sort-packages": true
    },
    "scripts": {
       "make-devtools": "@php -dphar.readonly=0 tests/plugins/DevTools/src/DevTools/ConsoleScript.php --make tests/plugins/DevTools --out plugins/DevTools.phar",

@@ -35,9 +35,7 @@ class PermissibleBase implements Permissible{
 	 * @var bool[]
 	 * @phpstan-var array<string, bool>
 	 */
-	private $rootPermissions = [
-		DefaultPermissions::ROOT_USER => true
-	];
+	private $rootPermissions;
 
 	/** @var PermissionAttachment[] */
 	private $attachments = [];
@@ -51,14 +49,16 @@ class PermissibleBase implements Permissible{
 	 */
 	private $permissionRecalculationCallbacks;
 
-	public function __construct(bool $isOp){
+	/**
+	 * @param bool[] $basePermissions
+	 * @phpstan-param array<string, bool> $basePermissions
+	 */
+	public function __construct(array $basePermissions){
 		$this->permissionRecalculationCallbacks = new Set();
 
 		//TODO: we can't setBasePermission here directly due to bad architecture that causes recalculatePermissions to explode
 		//so, this hack has to be done here to prevent permission recalculations until it's fixed...
-		if($isOp){
-			$this->rootPermissions[DefaultPermissions::ROOT_OPERATOR] = true;
-		}
+		$this->rootPermissions = $basePermissions;
 		//TODO: permissions need to be recalculated here, or inherited permissions won't work
 	}
 
@@ -130,7 +130,7 @@ class PermissibleBase implements Permissible{
 	}
 
 	public function recalculatePermissions() : array{
-		Timings::$permissibleCalculationTimer->startTiming();
+		Timings::$permissibleCalculation->startTiming();
 
 		$permManager = PermissionManager::getInstance();
 		$permManager->unsubscribeFromAllPermissions($this);
@@ -142,35 +142,33 @@ class PermissibleBase implements Permissible{
 			if($perm === null){
 				throw new \InvalidStateException("Unregistered root permission $name");
 			}
-			$this->permissions[$name] = new PermissionAttachmentInfo($name, null, $isGranted);
+			$this->permissions[$name] = new PermissionAttachmentInfo($name, null, $isGranted, null);
 			$permManager->subscribeToPermission($name, $this);
-			$this->calculateChildPermissions($perm->getChildren(), !$isGranted, null);
+			$this->calculateChildPermissions($perm->getChildren(), !$isGranted, null, $this->permissions[$name]);
 		}
 
 		foreach($this->attachments as $attachment){
-			$this->calculateChildPermissions($attachment->getPermissions(), false, $attachment);
+			$this->calculateChildPermissions($attachment->getPermissions(), false, $attachment, null);
 		}
 
 		$diff = [];
-		Timings::$permissibleCalculationDiffTimer->time(function() use ($oldPermissions, &$diff) : void{
+		Timings::$permissibleCalculationDiff->time(function() use ($oldPermissions, &$diff) : void{
 			foreach($this->permissions as $permissionAttachmentInfo){
 				$name = $permissionAttachmentInfo->getPermission();
 				if(!isset($oldPermissions[$name])){
 					$diff[$name] = false;
 				}elseif($oldPermissions[$name]->getValue() !== $permissionAttachmentInfo->getValue()){
-					//permission was previously unset OR the value of the permission changed
-					//we don't care who assigned the permission, only that the result is different
-					$diff[$name] = $oldPermissions[$name]->getValue();
+					continue;
 				}
 				unset($oldPermissions[$name]);
 			}
-			//oldPermissions now only contains permissions that are no longer set after recalculation
+			//oldPermissions now only contains permissions that changed or are no longer set
 			foreach($oldPermissions as $permissionAttachmentInfo){
 				$diff[$permissionAttachmentInfo->getPermission()] = $permissionAttachmentInfo->getValue();
 			}
 		});
 
-		Timings::$permissibleCalculationCallbackTimer->time(function() use ($diff) : void{
+		Timings::$permissibleCalculationCallback->time(function() use ($diff) : void{
 			if(count($diff) > 0){
 				foreach($this->permissionRecalculationCallbacks as $closure){
 					$closure($diff);
@@ -178,23 +176,23 @@ class PermissibleBase implements Permissible{
 			}
 		});
 
-		Timings::$permissibleCalculationTimer->stopTiming();
+		Timings::$permissibleCalculation->stopTiming();
 		return $diff;
 	}
 
 	/**
 	 * @param bool[]                    $children
 	 */
-	private function calculateChildPermissions(array $children, bool $invert, ?PermissionAttachment $attachment) : void{
+	private function calculateChildPermissions(array $children, bool $invert, ?PermissionAttachment $attachment, ?PermissionAttachmentInfo $parent) : void{
 		$permManager = PermissionManager::getInstance();
 		foreach($children as $name => $v){
 			$perm = $permManager->getPermission($name);
 			$value = ($v xor $invert);
-			$this->permissions[$name] = new PermissionAttachmentInfo($name, $attachment, $value);
+			$this->permissions[$name] = new PermissionAttachmentInfo($name, $attachment, $value, $parent);
 			$permManager->subscribeToPermission($name, $this);
 
 			if($perm instanceof Permission){
-				$this->calculateChildPermissions($perm->getChildren(), !$value, $attachment);
+				$this->calculateChildPermissions($perm->getChildren(), !$value, $attachment, $this->permissions[$name]);
 			}
 		}
 	}
