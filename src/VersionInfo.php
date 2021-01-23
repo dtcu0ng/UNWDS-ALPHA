@@ -38,7 +38,7 @@ final class VersionInfo{
 		 public const DISTRO_NAME = "UNWDS";
 		 public const CODENAME = "NEra";
 		 public const UNWDS_VERSION = "3.0.0";
-		 public const BUILD_NUMBER = 0102;
+		 public const BUILD_NUMBER = 0104;
 
 	private function __construct(){
 		//NOOP
