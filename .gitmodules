@@ -1,15 +1,1 @@
-[submodule "resources/locale"]
-	path = resources/locale
-	url = https://github.com/UnnamedNetwork/Language.git
-[submodule "resources/vanilla"]
-	path = resources/vanilla
-	url = https://github.com/UnnamedNetwork/BedrockData.git
-[submodule "tests/plugins/DevTools"]
-	path = tests/plugins/DevTools
-	url = https://github.com/UnnamedNetwork/DevTools.git
-[submodule "build/php"]
-	path = build/php
-	url = https://github.com/UnnamedNetwork/php-build-scripts.git
-[submodule "build/preprocessor"]
-	path = build/preprocessor
-	url = https://github.com/UnnamedNetwork/PreProcessor.git
+
