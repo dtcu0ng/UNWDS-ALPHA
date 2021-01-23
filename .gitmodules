@@ -11,3 +11,6 @@
 [submodule "build/php"]
 	path = build/php
 	url = https://github.com/pmmp/php-build-scripts.git
+[submodule "resources/locale"]
+	path = resources/locale
+	url = https://github.com/UnnamedNetwork/Language
