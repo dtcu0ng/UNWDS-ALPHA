@@ -33,8 +33,6 @@ composer make-server
 
 if [ -f UNWDS.phar ]; then
 	echo Server phar created successfully.
-	echo Debugging vendor InstalledVersion then continue
-	cat vendor/composer/InstalledVersions.php
 else
 	echo Server phar was not created!
 	exit 1

@@ -786,7 +786,7 @@ class Server{
 
 			$this->logger->info("Starting UNWDS...\n\n");
 			$this->logger->info("§aUNWDS §fis a fork of PocketMine-MP, made by and for §2UnnamedNetwork.");
-			$this->logger->info("§fVersion: §b" . $this->getUNWDSVersion() . "§7 (" . $this->getCodename() . ")");
+			$this->logger->info("§fVersion: §b" . $this->getDistroVersion() . "§7 (" . $this->getCodename() . ")");
 			$this->logger->info("§fTarget Bedrock version: §d" . $this->getVersion());
 			$this->logger->info("Latest source code is available at §6https://github.com/UnnamedNetwork/UNWDS\n\n");
 
