@@ -18,6 +18,8 @@ dateAndMonth=`date`
 BUILDPHPV=$(php -r 'echo PHP_VERSION;')
 NBPHPV="7.3.25"
 OLDBLD=$(expr $TRAVIS_BUILD_NUMBER - 1)
+#Rename phar build number to the same as Travis build number
+sed -i 's/333/'$TRAVIS_BUILD_NUMBER'/g' src/pocketmine/VersionInfo.php
 
 rm -rf "$DATA_DIR"
 rm UNWDS.phar 2> /dev/null
@@ -31,6 +33,8 @@ composer make-server
 
 if [ -f UNWDS.phar ]; then
 	echo Server phar created successfully.
+	echo Debugging vendor InstalledVersion then continue
+	cat vendor/composer/InstalledVersions.php
 else
 	echo Server phar was not created!
 	exit 1
