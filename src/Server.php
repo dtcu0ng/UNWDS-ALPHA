@@ -293,6 +293,14 @@ class Server{
 		return VersionInfo::NAME;
 	}
 
+	public function getDistroName() : string{
+		return VersionInfo::DISTRO_NAME;
+	}
+
+	public function getCodename() : string{
+		return VersionInfo::CODENAME;
+	}
+
 	public function isRunning() : bool{
 		return $this->isRunning;
 	}
@@ -307,6 +315,10 @@ class Server{
 
 	public function getApiVersion() : string{
 		return VersionInfo::BASE_VERSION;
+	}
+
+	public function getDistroVersion() : string{
+		return VersionInfo::DISTRO_VERSION;
 	}
 
 	public function getFilePath() : string{
@@ -395,7 +407,7 @@ class Server{
 	}
 
 	public function getMotd() : string{
-		return $this->configGroup->getConfigString("motd", VersionInfo::NAME . " Server");
+		return $this->configGroup->getConfigString("motd", VersionInfo::DISTRO_NAME . " Server");
 	}
 
 	/**
@@ -821,7 +833,15 @@ class Server{
 
 			$this->dataPath = realpath($dataPath) . DIRECTORY_SEPARATOR;
 			$this->pluginPath = realpath($pluginPath) . DIRECTORY_SEPARATOR;
-
+			if(\pocketmine\IS_DEVELOPMENT_BUILD){
+				$this->logger->warning("Git commit of this build is: " . \pocketmine\GIT_COMMIT . "");
+			}
+			$this->logger->info("Starting " . $this->getDistroName() . "...\n\n");
+			$this->logger->info("§a" . $this->getDistroName() . " §fis a fork of PocketMine-MP.");
+			$this->logger->info("§fVersion: §b" . $this->getDistroVersion() . "§7 (" . $this->getCodename() . ")");
+			$this->logger->info("§fTarget Bedrock version: §d" . $this->getVersion());
+			$this->logger->info("Latest source code is available at §6https://github.com/UnnamedNetwork/UNWDS\n\n");
+			
 			$this->logger->info("Loading server configuration");
 			if(!file_exists($this->dataPath . "pocketmine.yml")){
 				$content = file_get_contents(\pocketmine\RESOURCE_PATH . "pocketmine.yml");
@@ -834,7 +854,7 @@ class Server{
 			$this->configGroup = new ServerConfigGroup(
 				new Config($this->dataPath . "pocketmine.yml", Config::YAML, []),
 				new Config($this->dataPath . "server.properties", Config::PROPERTIES, [
-					"motd" => VersionInfo::NAME . " Server",
+					"motd" => VersionInfo::DISTRO_NAME . " Server",
 					"server-port" => 19132,
 					"white-list" => false,
 					"max-players" => 20,
@@ -878,18 +898,17 @@ class Server{
 
 			if(VersionInfo::IS_DEVELOPMENT_BUILD){
 				if(!((bool) $this->configGroup->getProperty("settings.enable-dev-builds", false))){
-					$this->logger->emergency($this->language->translateString("pocketmine.server.devBuild.error1", [VersionInfo::NAME]));
+					$this->logger->emergency($this->language->translateString("pocketmine.server.devBuild.error1", [VersionInfo::DISTRO_NAME]));
 					$this->logger->emergency($this->language->translateString("pocketmine.server.devBuild.error2"));
 					$this->logger->emergency($this->language->translateString("pocketmine.server.devBuild.error3"));
 					$this->logger->emergency($this->language->translateString("pocketmine.server.devBuild.error4", ["settings.enable-dev-builds"]));
-					$this->logger->emergency($this->language->translateString("pocketmine.server.devBuild.error5", ["https://github.com/pmmp/PocketMine-MP/releases"]));
-					$this->forceShutdown();
+					$this->logger->emergency($this->language->translateString("pocketmine.server.devBuild.error5", ["https://github.com/UnnamedNetwork/UNWDS/releases"]));
 
 					return;
 				}
 
 				$this->logger->warning(str_repeat("-", 40));
-				$this->logger->warning($this->language->translateString("pocketmine.server.devBuild.warning1", [VersionInfo::NAME]));
+				$this->logger->warning($this->language->translateString("pocketmine.server.devBuild.warning1", [VersionInfo::DISTRO_NAME]));
 				$this->logger->warning($this->language->translateString("pocketmine.server.devBuild.warning2"));
 				$this->logger->warning($this->language->translateString("pocketmine.server.devBuild.warning3"));
 				$this->logger->warning(str_repeat("-", 40));
@@ -957,7 +976,7 @@ class Server{
 				$this->configGroup->setConfigInt("difficulty", World::DIFFICULTY_HARD);
 			}
 
-			@cli_set_process_title($this->getName() . " " . $this->getPocketMineVersion());
+			@cli_set_process_title($this->getDistroName() . " " . $this->getDistroVersion());
 
 			$this->serverID = Utils::getMachineUniqueId($this->getIp() . $this->getPort());
 
@@ -968,10 +987,10 @@ class Server{
 			$this->network->setName($this->getMotd());
 
 			$this->logger->info($this->getLanguage()->translateString("pocketmine.server.info", [
-				$this->getName(),
+				$this->getDistroName(),
 				(VersionInfo::IS_DEVELOPMENT_BUILD ? TextFormat::YELLOW : "") . $this->getPocketMineVersion() . TextFormat::RESET
 			]));
-			$this->logger->info($this->getLanguage()->translateString("pocketmine.server.license", [$this->getName()]));
+			$this->logger->info($this->getLanguage()->translateString("pocketmine.server.license", [$this->getDistroName()]));
 
 			Timings::init();
 			TimingsHandler::setEnabled((bool) $this->configGroup->getProperty("settings.enable-profiling", false));
@@ -1518,9 +1537,9 @@ class Server{
 					$url = ((bool) $this->configGroup->getProperty("auto-report.use-https", true) ? "https" : "http") . "://" . $this->configGroup->getProperty("auto-report.host", "crash.pmmp.io") . "/submit/api";
 					$postUrlError = "Unknown error";
 					$reply = Internet::postURL($url, [
-						"report" => "yes",
-						"name" => $this->getName() . " " . $this->getPocketMineVersion(),
-						"email" => "crash@pocketmine.net",
+						"report" => "no",
+						"name" => $this->getDistroName() . " " . $this->getDistroVersion(),
+						"email" => "crashhole@unwds.net",
 						"reportPaste" => base64_encode($dump->getEncodedData())
 					], 10, [], $postUrlError);
 
@@ -1643,8 +1662,8 @@ class Server{
 		$connecting = $this->network->getConnectionCount() - $online;
 		$bandwidthStats = $this->network->getBandwidthTracker();
 
-		echo "\x1b]0;" . $this->getName() . " " .
-			$this->getPocketMineVersion() .
+		echo "\x1b]0;" . $this->getDistroName() . " " .
+			$this->getDistroVersion() .
 			" | Online $online/" . $this->getMaxPlayers() .
 			($connecting > 0 ? " (+$connecting connecting)" : "") .
 			" | Memory " . $usage .

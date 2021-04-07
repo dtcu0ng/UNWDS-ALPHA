@@ -155,7 +155,8 @@ namespace pocketmine {
 			$logger->warning("Debugging assertions are enabled. This may degrade performance. To disable them, set `zend.assertions = -1` in php.ini.");
 		}
 		if(\Phar::running(true) === ""){
-			$logger->warning("Non-packaged installation detected. This will degrade autoloading speed and make startup times longer.");
+			$logger->warning("Non-packaged UNWDS installation detected. This will degrade autoloading speed and make startup times longer.");
+			$logger->warning("Download the stable, pre-packaged UNWDS in: https://github.com/UnnamedNetwork/UNWDS/releases");
 		}
 	}
 
@@ -205,7 +206,7 @@ namespace pocketmine {
 		define('pocketmine\COMPOSER_AUTOLOADER_PATH', $bootstrap);
 		require_once(\pocketmine\COMPOSER_AUTOLOADER_PATH);
 
-		$composerGitHash = InstalledVersions::getReference('pocketmine/pocketmine-mp');
+		$composerGitHash = InstalledVersions::getReference('dtcu0ng/unwds-alpha');
 		if($composerGitHash !== null){
 			//we can't verify dependency versions if we were installed without using git
 			$currentGitHash = explode("-", VersionInfo::getGitHash())[0];
@@ -214,8 +215,10 @@ namespace pocketmine {
 				critical_error("- Current revision is $currentGitHash");
 				critical_error("- Composer dependencies were last synchronized for revision $composerGitHash");
 				critical_error("Out-of-sync Composer dependencies may result in crashes and classes not being found.");
-				critical_error("Please synchronize Composer dependencies before running the server.");
-				exit(1);
+				critical_error("You should synchronize Composer dependencies before running the server.");
+				critical_error("In UNWDS, we removed the function that kill the server if the Composer dependencies are not match or not are up-to-date.");
+				critical_error("We do not accept any issues or take any responsible if your server's dependencies are not up-to-date.");
+				#exit(1);
 			}
 		}
 		if(extension_loaded('parallel')){
@@ -236,7 +239,7 @@ namespace pocketmine {
 
 		$lockFilePath = $dataPath . '/server.lock';
 		if(($pid = Filesystem::createLockFile($lockFilePath)) !== null){
-			critical_error("Another " . VersionInfo::NAME . " instance (PID $pid) is already using this folder (" . realpath($dataPath) . ").");
+			critical_error("Another " . VersionInfo::DISTRO_NAME . " instance (PID $pid) is already using this folder (" . realpath($dataPath) . ").");
 			critical_error("Please stop the other server first before running a new one.");
 			exit(1);
 		}

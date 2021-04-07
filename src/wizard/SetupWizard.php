@@ -42,7 +42,7 @@ use const PHP_EOL;
 use const STDIN;
 
 class SetupWizard{
-	public const DEFAULT_NAME = VersionInfo::NAME . " Server";
+	public const DEFAULT_NAME = VersionInfo::DISTRO_NAME . " Server";
 	public const DEFAULT_PORT = 19132;
 	public const DEFAULT_PLAYERS = 20;
 
@@ -56,7 +56,7 @@ class SetupWizard{
 	}
 
 	public function run() : bool{
-		$this->message(VersionInfo::NAME . " set-up wizard");
+		$this->message(VersionInfo::DISTRO_NAME . " set-up wizard");
 
 		try{
 			$langs = Language::getLanguageList();
@@ -110,7 +110,7 @@ class SetupWizard{
 	}
 
 	private function showLicense() : bool{
-		$this->message($this->lang->translateString("welcome_to_pocketmine", [VersionInfo::NAME]));
+		$this->message($this->lang->translateString("welcome_to_pocketmine", [VersionInfo::DISTRO_NAME]));
 		echo <<<LICENSE
 
   This program is free software: you can redistribute it and/or modify
@@ -121,7 +121,7 @@ class SetupWizard{
 LICENSE;
 		$this->writeLine();
 		if(strtolower($this->getInput($this->lang->get("accept_license"), "n", "y/N")) !== "y"){
-			$this->error($this->lang->translateString("you_have_to_accept_the_license", [VersionInfo::NAME]));
+			$this->error($this->lang->translateString("you_have_to_accept_the_license", [VersionInfo::DISTRO_NAME]));
 			sleep(5);
 
 			return false;
@@ -225,7 +225,7 @@ LICENSE;
 	private function endWizard() : void{
 		$this->message($this->lang->get("you_have_finished"));
 		$this->message($this->lang->get("pocketmine_plugins"));
-		$this->message($this->lang->translateString("pocketmine_will_start", [VersionInfo::NAME]));
+		$this->message($this->lang->translateString("pocketmine_will_start", [VersionInfo::DISTRO_NAME]));
 
 		$this->writeLine();
 		$this->writeLine();
