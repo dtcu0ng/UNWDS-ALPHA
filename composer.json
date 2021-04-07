@@ -1,8 +1,8 @@
 {
-   "name": "pocketmine/pocketmine-mp",
-   "description": "A server software for Minecraft: Pocket Edition written in PHP",
+   "name": "dtcu0ng/unwds-alpha",
+   "description": "Software for Minecraft: BE server making, powered by PocketMine-MP",
    "type": "project",
-   "homepage": "https://pmmp.io",
+   "homepage": "https://github.com/dtcu0ng/unwds-alpha",
    "license": "LGPL-3.0",
    "require": {
       "php": "^7.4 || ^8.0",
