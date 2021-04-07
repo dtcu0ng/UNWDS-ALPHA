@@ -988,7 +988,7 @@ class Server{
 			$this->craftingManager = CraftingManagerFromDataHelper::make(\pocketmine\RESOURCE_PATH . '/vanilla/recipes.json');
 
 			$this->resourceManager = new ResourcePackManager($this->getDataPath() . "resource_packs" . DIRECTORY_SEPARATOR, $this->logger);
-
+			$this->logger->warning($this->getLanguage()->translateString("pocketmine.spoonmask.enabled"));
 			$pluginGraylist = null;
 			$graylistFile = $this->dataPath . "plugin_list.yml";
 			if(!file_exists($graylistFile)){
