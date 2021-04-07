@@ -86,7 +86,6 @@ use pocketmine\snooze\SleeperNotifier;
 use pocketmine\stats\SendUsageTask;
 use pocketmine\timings\Timings;
 use pocketmine\timings\TimingsHandler;
-use pocketmine\updater\AutoUpdater;
 use pocketmine\utils\AssumptionFailedError;
 use pocketmine\utils\Config;
 use pocketmine\utils\Filesystem;
