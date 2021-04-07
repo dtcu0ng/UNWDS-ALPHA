@@ -190,9 +190,6 @@ class Server{
 	/** @var float */
 	private $profilingTickRate = 20;
 
-	/** @var AutoUpdater */
-	private $updater;
-
 	/** @var AsyncPool */
 	private $asyncPool;
 
@@ -422,13 +419,6 @@ class Server{
 	 */
 	public function getLogger(){
 		return $this->logger;
-	}
-
-	/**
-	 * @return AutoUpdater
-	 */
-	public function getUpdater(){
-		return $this->updater;
 	}
 
 	/**
@@ -833,15 +823,14 @@ class Server{
 
 			$this->dataPath = realpath($dataPath) . DIRECTORY_SEPARATOR;
 			$this->pluginPath = realpath($pluginPath) . DIRECTORY_SEPARATOR;
-			if(\pocketmine\IS_DEVELOPMENT_BUILD){
-				$this->logger->warning("Git commit of this build is: " . \pocketmine\GIT_COMMIT . "");
+			if(VersionInfo::IS_DEVELOPMENT_BUILD){
+				$this->logger->warning("Git commit of this build is: " . VersionInfo::getGitHash . "");
 			}
 			$this->logger->info("Starting " . $this->getDistroName() . "...\n\n");
 			$this->logger->info("§a" . $this->getDistroName() . " §fis a fork of PocketMine-MP.");
 			$this->logger->info("§fVersion: §b" . $this->getDistroVersion() . "§7 (" . $this->getCodename() . ")");
 			$this->logger->info("§fTarget Bedrock version: §d" . $this->getVersion());
 			$this->logger->info("Latest source code is available at §6https://github.com/UnnamedNetwork/UNWDS\n\n");
-			
 			$this->logger->info("Loading server configuration");
 			if(!file_exists($this->dataPath . "pocketmine.yml")){
 				$content = file_get_contents(\pocketmine\RESOURCE_PATH . "pocketmine.yml");
@@ -1033,8 +1022,6 @@ class Server{
 			$this->worldManager = new WorldManager($this, $this->dataPath . "/worlds", $providerManager);
 			$this->worldManager->setAutoSave($this->configGroup->getConfigBool("auto-save", $this->worldManager->getAutoSave()));
 			$this->worldManager->setAutoSaveInterval((int) $this->configGroup->getProperty("ticks-per.autosave", 6000));
-
-			$this->updater = new AutoUpdater($this, $this->configGroup->getProperty("auto-updater.host", "update.pmmp.io"));
 
 			$this->queryInfo = new QueryInfo($this);
 
