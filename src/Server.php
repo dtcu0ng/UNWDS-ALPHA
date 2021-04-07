@@ -822,9 +822,6 @@ class Server{
 
 			$this->dataPath = realpath($dataPath) . DIRECTORY_SEPARATOR;
 			$this->pluginPath = realpath($pluginPath) . DIRECTORY_SEPARATOR;
-			if(VersionInfo::IS_DEVELOPMENT_BUILD){
-				$this->logger->warning("Git commit of this build is: " . $this->getGitHash() . "");
-			}
 			$this->logger->info("Starting " . $this->getDistroName() . "...\n\n");
 			$this->logger->info("§a" . $this->getDistroName() . " §fis a fork of PocketMine-MP.");
 			$this->logger->info("§fVersion: §b" . $this->getDistroVersion() . "§7 (" . $this->getCodename() . ")");
