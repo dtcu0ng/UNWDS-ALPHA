@@ -78,6 +78,9 @@ jobs:
 
       - name: Run PHPStan
         run: ./vendor/bin/phpstan analyze --no-progress --memory-limit=2G
+      
+      - name: Debugging
+        run: cd resources/vanilla && ls
 
   phpunit:
     name: PHPUnit tests
